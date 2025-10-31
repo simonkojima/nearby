@@ -35,10 +35,6 @@ def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, m
         data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch).squeeze()
         # data.shape: n_epochs, n_freqs, n_times
 
-        print(data)
-
-        exit()
-
         data = data.mean(2)
         # data.shape: n_epochs, n_freqs
 
