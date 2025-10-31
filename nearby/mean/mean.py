@@ -68,15 +68,15 @@ def mean_frechet_p2(X,
         return result.point
 
 
-def _mean_frechet_p2(X,
-                     max_iter=1000,
-                     lr=2.0,
-                     alpha=1e-4,
-                     beta=0.5,
-                     tol=1e-8,
-                     eps=1e-12,
-                     init="extrinsic",
-                     seed=42):
+def mean_frechet_p2_old(X,
+                        max_iter=1000,
+                        lr=2.0,
+                        alpha=1e-4,
+                        beta=0.5,
+                        tol=1e-8,
+                        eps=1e-12,
+                        init="extrinsic",
+                        seed=42):
     X = np.array(X)
 
     X = X / np.linalg.norm(X, axis=1, keepdims=True)
