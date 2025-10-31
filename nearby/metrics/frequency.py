@@ -11,7 +11,7 @@ from ..mean import mean_frechet_p2, mean_extrinsic
 def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, average=True,
                          additional_values=None,
                          picks=None):
-    return atfv(tfrs, baseline, tmin, tmax, fmin, fmax, average, additional_values, picks)
+    return atfv(tfrs, baseline, tmin, tmax, fmin, fmax, "angle", average, additional_values, picks)
 
 
 def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
