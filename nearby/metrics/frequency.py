@@ -2,12 +2,21 @@ import json
 import numpy as np
 import pandas as pd
 
+import scipy
+
 from ..distances import distance_angle
-from ..mean import mean_frechet_p2
+from ..mean import mean_frechet_p2, mean_extrinsic
 
 
-def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, average=True, additional_values=None,
+def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, average=True,
+                         additional_values=None,
                          picks=None):
+    return atfv(tfrs, baseline, tmin, tmax, fmin, fmax, average, additional_values, picks)
+
+
+def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
+         additional_values=None,
+         picks=None):
     # Spectral Angle Mapper
     # Angular distance between two frequency representations
 
@@ -16,11 +25,12 @@ def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, average
     else:
         ch_names = tfrs.ch_names
 
-    tfrs.copy().apply_baseline(baseline, mode="percent")
+    if baseline is not None:
+        tfrs.copy().apply_baseline(baseline, mode="percent")
 
     df_list = []
     for ch in ch_names:
-        data = tfrs.get_data(tmin=tmin, tmax=tmax, picks=ch).squeeze()
+        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch).squeeze()
         # data.shape: n_epochs, n_freqs, n_times
 
         data = data.mean(2)
@@ -28,12 +38,23 @@ def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, average
 
         n_epochs, _ = data.shape
 
-        mean = mean_frechet_p2(data)
-
         distances = []
-        for n in range(n_epochs):
-            d = distance_angle(mean, data[n, :])
-            distances.append(d)
+
+        if metrics == "angle":
+            mean = mean_frechet_p2(data, verbosity=0)
+
+            for n in range(n_epochs):
+                d = distance_angle(mean, data[n, :])
+                distances.append(d)
+        elif metrics == "cosine":
+            mean = mean_extrinsic(data)
+
+            for n in range(n_epochs):
+                d = scipy.spatial.distance.cosine(mean, data[n, :])
+                distances.append(d)
+
+        else:
+            raise ValueError("metrics must be 'angle' or 'cosine'")
 
         if average:
             distances = np.array(distances)
@@ -42,7 +63,11 @@ def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, average
             distances = json.dumps(distances)
 
         df = pd.DataFrame()
-        df["spatial_dispersion"] = [distances]
+        # df["atfv"] = [distances]
+        if metrics == "angle":
+            df["atfva"] = [distances]
+        elif metrics == "cosine":
+            df["atfvc"] = [distances]
         df["channel"] = [ch]
 
         if additional_values is not None:

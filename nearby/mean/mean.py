@@ -23,14 +23,60 @@ def get_random_unit_vec(d, rng=None):
 
 
 def mean_frechet_p2(X,
-                    max_iter=1000,
-                    lr=2.0,
-                    alpha=1e-4,
-                    beta=0.5,
-                    tol=1e-8,
-                    eps=1e-12,
                     init="extrinsic",
-                    seed=42):
+                    seed=42,
+                    return_all=False,
+                    **kwargs):
+    try:
+        import autograd.numpy as anp
+        import pymanopt
+    except:
+        raise RuntimeError("autograd and pymanopt are not installed. pip install autograd pymanopt[autograd]")
+
+    X = np.array(X)
+
+    X = X / np.linalg.norm(X, axis=1, keepdims=True)
+
+    n_vecs, n_dim = X.shape
+
+    if init == "extrinsic":
+        initial_point = mean_extrinsic(X)
+    elif init == "random":
+        rng = np.random.default_rng(seed)
+        initial_point = get_random_unit_vec(d=n_dim, rng=rng)
+    else:
+        initial_point = np.array(init)
+        initial_point /= np.linalg.norm(initial_point)
+
+    manifold = pymanopt.manifolds.Sphere(n_dim)
+
+    @pymanopt.function.autograd(manifold)
+    def cost(point):
+        f = anp.arccos(X @ point)
+        f = anp.power(f, 2)
+        f = anp.sum(f)
+        return f
+
+    problem = pymanopt.Problem(manifold, cost)
+
+    optimizer = pymanopt.optimizers.SteepestDescent(**kwargs)
+    result = optimizer.run(problem, initial_point=initial_point)
+
+    if return_all:
+        return result
+    else:
+        return result.point
+
+
+def _mean_frechet_p2(X,
+                     max_iter=1000,
+                     lr=2.0,
+                     alpha=1e-4,
+                     beta=0.5,
+                     tol=1e-8,
+                     eps=1e-12,
+                     init="extrinsic",
+                     seed=42):
     X = np.array(X)
 
     X = X / np.linalg.norm(X, axis=1, keepdims=True)

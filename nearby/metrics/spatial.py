@@ -79,7 +79,13 @@ def spatial_dispersion_cross_user(tfrs_list, baseline=[-1.0, 0.0], fmin=7, fmax=
 
 def spatial_dispersion(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tmax=4.5, metrics="angle", average=True,
                        additional_values=None):
-    tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+    return atsv(tfrs, baseline, fmin, fmax, tmin, tmax, metrics, average, additional_values)
+
+
+def atsv(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tmax=4.5, metrics="angle", average=True,
+         additional_values=None):
+    if baseline is not None:
+        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
 
     data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
     # data.shape: n_epochs, n_channels, n_freqs, n_times
@@ -102,7 +108,7 @@ def spatial_dispersion(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tm
             distances.append(d)
 
     elif metrics == "angle":
-        mean = mean_frechet_p2(data)
+        mean = mean_frechet_p2(data, verbosity=0)
 
         for n in range(n_epochs):
             d = distance_angle(mean, data[n, :])
@@ -118,8 +124,11 @@ def spatial_dispersion(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tm
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    df["spatial_dispersion"] = [distances]
-    df["metrics"] = [metrics]
+    if metrics == "angle":
+        df["atsva"] = [distances]
+    elif metrics == "cosine":
+        df["atsvc"] = [distances]
+    # df["metrics"] = [metrics]
 
     if additional_values is not None:
         for key, value in additional_values.items():
