@@ -11,6 +11,8 @@ from ..mean import mean_frechet_p2, mean_extrinsic
 def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, average=True,
                          additional_values=None,
                          picks=None):
+    # import warnings
+    # warnings.deprecated("frequency_dispersion is deprecated. Use atfv instead.")
     return atfv(tfrs, baseline, tmin, tmax, fmin, fmax, "angle", average, additional_values, picks)
 
 
@@ -26,12 +28,16 @@ def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, m
         ch_names = tfrs.ch_names
 
     if baseline is not None:
-        tfrs.copy().apply_baseline(baseline, mode="percent")
+        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
 
     df_list = []
     for ch in ch_names:
         data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch).squeeze()
         # data.shape: n_epochs, n_freqs, n_times
+
+        print(data)
+
+        exit()
 
         data = data.mean(2)
         # data.shape: n_epochs, n_freqs
