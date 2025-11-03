@@ -50,10 +50,6 @@ def me(
 
 def me_cross_user(tfrs_list, fmin=7, fmax=13, tmin=0.5, tmax=4.5, average=True,
                   additional_values=None):
-    ch_names = tfrs_list[0].ch_names
-
-    from .. import utils
-
     data_list = []
     for tfrs in tfrs_list:
         if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
@@ -116,3 +112,25 @@ def smeat(
             df[key] = [value for m in range(df.shape[0])]
 
     return df
+
+
+def smeat_cross_user(tfrs_list, fmin=7, fmax=13, tmin=0.5, tmax=4.5, additional_values=None):
+    data_list = []
+    for tfrs in tfrs_list:
+        if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
+            raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.AverageTFR. use tfrs.average()")
+
+        data_list.append(tfrs.get_data())
+
+    info = tfrs_list[0].info
+    times = tfrs_list[0].times
+    freqs = tfrs_list[0].freqs
+
+    tfrs = mne.time_frequency.EpochsTFRArray(
+        info=info,
+        data=np.array(data_list),
+        times=times,
+        freqs=freqs,
+    )
+
+    return smeat(tfrs, baseline=None, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, additional_values=additional_values)
