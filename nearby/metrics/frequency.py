@@ -10,14 +10,6 @@ from ..distances import distance_angle
 from ..mean import mean_frechet_p2, mean_extrinsic
 
 
-def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, average=True,
-                         additional_values=None,
-                         picks=None):
-    # import warnings
-    # warnings.deprecated("frequency_dispersion is deprecated. Use atfv instead.")
-    return atfv(tfrs, baseline, tmin, tmax, fmin, fmax, "angle", average, additional_values, picks)
-
-
 def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
          additional_values=None,
          picks=None):
@@ -83,27 +75,3 @@ def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, m
     df = pd.concat(df_list, axis=0, ignore_index=True)
 
     return df
-
-
-def atfv_cross_user(tfrs_list, tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
-                    additional_values=None):
-    data_list = []
-    for tfrs in tfrs_list:
-        if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
-            raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.AverageTFR. use tfrs.average()")
-
-        data_list.append(tfrs.get_data())
-
-    info = tfrs_list[0].info
-    times = tfrs_list[0].times
-    freqs = tfrs_list[0].freqs
-
-    tfrs = mne.time_frequency.EpochsTFRArray(
-        info=info,
-        data=np.array(data_list),
-        times=times,
-        freqs=freqs,
-    )
-
-    return atfv(tfrs, baseline=None, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metrics=metrics, average=True,
-                additional_values=additional_values)
