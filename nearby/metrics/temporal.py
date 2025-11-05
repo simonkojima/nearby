@@ -19,6 +19,45 @@ def attv(
         average=True,
         additional_values=None,
 ):
+    """
+    Compute Across-Trial Temporal Variability values.
+
+    Parameters
+    ----------
+
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+        The MNE object containing either epochs or time–frequency data.
+
+    baseline : tuple | list | None, optional
+        Time interval used for baseline correction. If `None`, no baseline is applied.
+        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
+        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+
+    fmin, fmax : float | None, optional
+        Frequency range of interest. Only used when `obj` is a TFR object.
+
+    tmin, tmax : float | None, optional
+        Time range of interest, in seconds.
+
+    picks : str | array_like | None, optional
+        Channels to include.
+
+    average : bool, default=True
+        If `True`, values are averaged across epochs. If `False`, a value
+        is returned for each epoch.
+        If ``average=False``, the DataFrame contains one entry per channel,
+        where each entry consists of a JSON-encoded list representing the
+        per-epoch ERD/S values.
+
+    additional_values : dict | None, optional
+        Additional columns to append to the output dataframe.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing mean ERD/S values for each channel.
+
+    """
     try:
         import tslearn.metrics
     except:
@@ -90,6 +129,45 @@ def wttv(
         additional_values=None,
         average=True,
 ):
+    """
+    Compute Within-Trial Temporal Variability values.
+
+    Parameters
+    ----------
+
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+        The MNE object containing either epochs or time–frequency data.
+
+    baseline : tuple | list | None, optional
+        Time interval used for baseline correction. If `None`, no baseline is applied.
+        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
+        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+
+    fmin, fmax : float | None, optional
+        Frequency range of interest. Only used when `obj` is a TFR object.
+
+    tmin, tmax : float | None, optional
+        Time range of interest, in seconds.
+
+    picks : str | array_like | None, optional
+        Channels to include.
+
+    average : bool, default=True
+        If `True`, values are averaged across epochs. If `False`, a value
+        is returned for each epoch.
+        If ``average=False``, the DataFrame contains one entry per channel,
+        where each entry consists of a JSON-encoded list representing the
+        per-epoch ERD/S values.
+
+    additional_values : dict | None, optional
+        Additional columns to append to the output dataframe.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing mean ERD/S values for each channel.
+
+    """
     type_obj = check_obj_type(obj)
 
     if baseline is not None:
