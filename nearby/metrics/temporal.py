@@ -5,92 +5,96 @@ import pandas as pd
 
 import mne
 
-
-def mean_erds(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
-        average=True,
-        additional_values=None,
-):
-    ch_names = tfrs.ch_names
-
-    tfrs = tfrs.apply_baseline(baseline, mode="percent")
-
-    df_list = []
-    for ch in ch_names:
-        # data.shape: (n_trials, n_timesamples)
-        data = np.squeeze(
-            tfrs.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-        ).mean(1)
-
-        mean = data.mean(1)
-        sd = np.std(mean)
-
-        if average:
-            mean = mean.mean(0)
-
-        df = pd.DataFrame()
-        df["channel"] = [ch]
-        df["mean_erds_amplitude"] = [mean]
-
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
-
-    if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
-
-    return df
-
-
-def dtw_dispersion(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
-        average=True,
-        additional_values=None,
-):
-    df = attv(tfrs, baseline, fmin, fmax, tmin, tmax, average, additional_values)
-    df["dtw_dispersion"] = df["attv"].tolist()
-
-    return df
+from ..utils import check_obj_type, add_values_to_df
 
 
 def attv(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
         average=True,
         additional_values=None,
 ):
+    """
+    Compute Across-Trial Temporal Variability values.
+
+    Parameters
+    ----------
+
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+        The MNE object containing either epochs or time–frequency data.
+
+    baseline : tuple | list | None, optional
+        Time interval used for baseline correction. If `None`, no baseline is applied.
+        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
+        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+
+    fmin, fmax : float | None, optional
+        Frequency range of interest. Only used when `obj` is a TFR object.
+
+    tmin, tmax : float | None, optional
+        Time range of interest, in seconds.
+
+    picks : str | array_like | None, optional
+        Channels to include.
+
+    average : bool, default=True
+        If `True`, values are averaged across epochs. If `False`, a value
+        is returned for each epoch.
+        If ``average=False``, the DataFrame contains one entry per channel,
+        where each entry consists of a JSON-encoded list representing the
+        per-epoch ERD/S values.
+
+    additional_values : dict | None, optional
+        Additional columns to append to the output dataframe.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing mean ERD/S values for each channel.
+
+    """
     try:
         import tslearn.metrics
     except:
         raise RuntimeError("tslearn is not installed. pip install tslearn")
 
-    ch_names = tfrs.ch_names
+    type_obj = check_obj_type(obj)
 
     if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+        if type_obj == "tfr":
+            obj = obj.copy().apply_baseline(baseline, "percent")
+        elif type_obj == "epochs":
+            obj = obj.copy().apply_baseline(baseline)
 
-    df_list = []
-    for ch in ch_names:
-        data = np.squeeze(
-            tfrs.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-        ).mean(1)
+    if picks is not None:
+        obj = obj.pick(picks=picks)
+
+    df_dict = {"channel": [], "attv": []}
+    for ch in obj.ch_names:
+        if type_obj == "tfr":
+            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_freqs, n_times
+
+            data = data.mean(1)
+            # data.shape: n_epochs, n_times
+
+        elif type_obj == "epochs":
+            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # data.shape: n_epochs, n_channels, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_times
 
         mean = data.mean(0)
+        # mean.shape: n_times
 
         scores = []
         for m in range(data.shape[0]):
@@ -103,80 +107,95 @@ def attv(
         else:
             scores = json.dumps(scores)
 
-        df = pd.DataFrame()
-        df["channel"] = [ch]
-        df["attv"] = [scores]
+        df_dict["channel"].append(ch)
+        df_dict["attv"].append(scores)
 
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
+    df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
-
-    return df
-
-
-def attv_cross_user(tfrs_list, fmin=7, fmax=13, tmin=0.5, tmax=4.5, average=True, additional_values=None):
-    data_list = []
-    for tfrs in tfrs_list:
-        if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
-            raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.AverageTFR. use tfrs.average()")
-
-        data_list.append(tfrs.get_data())
-
-    info = tfrs_list[0].info
-    times = tfrs_list[0].times
-    freqs = tfrs_list[0].freqs
-
-    tfrs = mne.time_frequency.EpochsTFRArray(
-        info=info,
-        data=np.array(data_list),
-        times=times,
-        freqs=freqs,
-    )
-
-    return attv(tfrs, baseline=None, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, average=True,
-                additional_values=additional_values)
-
-
-def temporal_variability(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
-        additional_values=None,
-        average=True,
-):
-    df = wttv(tfrs, baseline, fmin, fmax, tmin, tmax, average, additional_values)
-    df["temporal_variability"] = df["wttv"].tolist()
+        df = add_values_to_df(df, additional_values)
 
     return df
 
 
 def wttv(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
         additional_values=None,
         average=True,
 ):
-    ch_names = tfrs.ch_names
+    """
+    Compute Within-Trial Temporal Variability values.
+
+    Parameters
+    ----------
+
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+        The MNE object containing either epochs or time–frequency data.
+
+    baseline : tuple | list | None, optional
+        Time interval used for baseline correction. If `None`, no baseline is applied.
+        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
+        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+
+    fmin, fmax : float | None, optional
+        Frequency range of interest. Only used when `obj` is a TFR object.
+
+    tmin, tmax : float | None, optional
+        Time range of interest, in seconds.
+
+    picks : str | array_like | None, optional
+        Channels to include.
+
+    average : bool, default=True
+        If `True`, values are averaged across epochs. If `False`, a value
+        is returned for each epoch.
+        If ``average=False``, the DataFrame contains one entry per channel,
+        where each entry consists of a JSON-encoded list representing the
+        per-epoch ERD/S values.
+
+    additional_values : dict | None, optional
+        Additional columns to append to the output dataframe.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing mean ERD/S values for each channel.
+
+    """
+    type_obj = check_obj_type(obj)
 
     if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+        if type_obj == "tfr":
+            obj = obj.copy().apply_baseline(baseline, "percent")
+        elif type_obj == "epochs":
+            obj = obj.copy().apply_baseline(baseline)
 
-    df_list = []
-    for ch in ch_names:
-        data = np.squeeze(
-            tfrs.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-        ).mean(1)
+    if picks is not None:
+        obj = obj.pick(picks=picks)
+
+    df_dict = {"channel": [], "wttv": []}
+    for ch in obj.ch_names:
+        if type_obj == "tfr":
+            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_freqs, n_times
+
+            data = data.mean(1)
+            # data.shape: n_epochs, n_times
+        elif type_obj == "epochs":
+            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # data.shape: n_epochs, n_channels, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_times
 
         sd = np.std(data, axis=1)
 
@@ -186,16 +205,12 @@ def wttv(
             sd = sd.tolist()
             sd = json.dumps(sd)
 
-        df = pd.DataFrame()
-        df["channel"] = [ch]
-        df["wttv"] = [sd]
+        df_dict["channel"].append(ch)
+        df_dict["wttv"].append(sd)
 
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
+    df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
+        df = add_values_to_df(df, additional_values)
 
     return df

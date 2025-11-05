@@ -10,54 +10,80 @@ import mne
 from ..distances import distance_angle
 from ..mean import mean_extrinsic, mean_frechet_p2
 
-
-def spatial_dispersion_cross_user_array(data, metrics="angle", average=True, additional_values=None):
-    n_users, _ = data.shape
-
-    distances = []
-
-    if metrics == "cosine":
-        mean = mean_extrinsic(data)
-
-        for n in range(n_users):
-            d = scipy.spatial.distance.cosine(mean, data[n, :])
-            distances.append(d)
-
-    elif metrics == "angle":
-        mean = mean_frechet_p2(data)
-
-        for n in range(n_users):
-            d = distance_angle(mean, data[n, :])
-            distances.append(d)
-
-    else:
-        raise ValueError("metrics must be 'angle' or 'cosine'")
-
-    if average:
-        distances = np.array(distances)
-        distances = distances.mean()
-    else:
-        distances = json.dumps(distances)
-
-    df = pd.DataFrame()
-    df["spatial_dispersion"] = [distances]
-    df["metrics"] = [metrics]
-
-    if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
-
-    return df
+from ..utils import check_obj_type, add_values_to_df
 
 
-def spatial_dispersion_cross_user(tfrs_list, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tmax=4.5, metrics="angle",
-                                  average=True,
-                                  additional_values=None):
-    data_list = []
-    for tfrs in tfrs_list:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+def atsv(
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        metrics="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
+):
+    """
+    Compute Across-Trial Spatial Variability values.
 
-        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
+    Parameters
+    ----------
+
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+        The MNE object containing either epochs or time–frequency data.
+
+    baseline : tuple | list | None, optional
+        Time interval used for baseline correction. If `None`, no baseline is applied.
+        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
+        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+
+    fmin, fmax : float | None, optional
+        Frequency range of interest. Only used when `obj` is a TFR object.
+
+    tmin, tmax : float | None, optional
+        Time range of interest, in seconds.
+
+    metrics : {"angle", "cosine"}, default="angle"
+        If "angle", the distance between the mean and each epoch is computed using
+        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+
+        If "cosine", the distance between the mean and each epoch is computed using
+        cosine distance. The mean is estimated using an extrinsic mean.
+
+    picks : str | array_like | None, optional
+        Channels to include.
+
+    average : bool, default=True
+        If `True`, values are averaged across epochs. If `False`, a value
+        is returned for each epoch.
+        If ``average=False``, the DataFrame contains one entry per channel,
+        where each entry consists of a JSON-encoded list representing the
+        per-epoch ERD/S values.
+
+    additional_values : dict | None, optional
+        Additional columns to append to the output dataframe.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing mean ERD/S values for each channel.
+
+    """
+    type_obj = check_obj_type(obj)
+
+    if baseline is not None:
+        if type_obj == "tfr":
+            obj = obj.copy().apply_baseline(baseline, "percent")
+        elif type_obj == "epochs":
+            obj = obj.copy().apply_baseline(baseline)
+
+    if picks is not None:
+        obj = obj.pick(picks=picks)
+
+    if type_obj == "tfr":
+        data = obj.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
         # data.shape: n_epochs, n_channels, n_freqs, n_times
 
         data = data.mean(2)
@@ -65,38 +91,12 @@ def spatial_dispersion_cross_user(tfrs_list, baseline=[-1.0, 0.0], fmin=7, fmax=
 
         data = data.mean(2)
         # data.shape: n_epochs, n_channels
+    elif type_obj == "epochs":
+        data = obj.get_data(tmin=tmin, tmax=tmax, units="uV")
+        # data.shape: n_epochs, n_channels, n_times
 
-        data = data.mean(0)
-        # data.shape: n_channels
-
-        data_list.append(data)
-
-    data = np.stack(data_list, axis=0)
-
-    df = spatial_dispersion_cross_user_array(data, metrics=metrics, average=average,
-                                             additional_values=additional_values)
-
-    return df
-
-
-def spatial_dispersion(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tmax=4.5, metrics="angle", average=True,
-                       additional_values=None):
-    return atsv(tfrs, baseline, fmin, fmax, tmin, tmax, metrics, average, additional_values)
-
-
-def atsv(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tmax=4.5, metrics="angle", average=True,
-         additional_values=None):
-    if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
-
-    data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
-    # data.shape: n_epochs, n_channels, n_freqs, n_times
-
-    data = data.mean(2)
-    # data.shape: n_epochs, n_channels, n_times
-
-    data = data.mean(2)
-    # data.shape: n_epochs, n_channels
+        data = data.mean(2)
+        # data.shape: n_epochs, n_channels
 
     n_epochs, _ = data.shape
 
@@ -130,34 +130,8 @@ def atsv(tfrs, baseline=[-1.0, 0.0], fmin=7, fmax=13, tmin=0.5, tmax=4.5, metric
         df["atsva"] = [distances]
     elif metrics == "cosine":
         df["atsvc"] = [distances]
-    # df["metrics"] = [metrics]
 
     if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
+        df = add_values_to_df(df, additional_values)
 
     return df
-
-
-def atsv_cross_user(tfrs_list, fmin=7, fmax=13, tmin=0.5, tmax=4.5, metrics="angle", average=True,
-                    additional_values=None):
-    data_list = []
-    for tfrs in tfrs_list:
-        if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
-            raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.AverageTFR. use tfrs.average()")
-
-        data_list.append(tfrs.get_data())
-
-    info = tfrs_list[0].info
-    times = tfrs_list[0].times
-    freqs = tfrs_list[0].freqs
-
-    tfrs = mne.time_frequency.EpochsTFRArray(
-        info=info,
-        data=np.array(data_list),
-        times=times,
-        freqs=freqs,
-    )
-
-    return atsv(tfrs, baseline=None, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metrics=metrics, average=True,
-                additional_values=additional_values)

@@ -24,8 +24,8 @@ def read(*paths, **kwargs):
 
     content = ""
     with io.open(
-        os.path.join(os.path.dirname(__file__), *paths),
-        encoding=kwargs.get("encoding", "utf8"),
+            os.path.join(os.path.dirname(__file__), *paths),
+            encoding=kwargs.get("encoding", "utf8"),
     ) as open_file:
         content = open_file.read().strip()
     return content
@@ -48,5 +48,5 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/simonkojima/nearby",
     packages=setuptools.find_packages(),
-    install_requires=["numpy", "mne>=1.8"],
+    install_requires=["numpy", "mne>=1.8", "pandas", "scipy"],
 )

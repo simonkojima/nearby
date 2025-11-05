@@ -9,32 +9,90 @@ import mne
 from ..distances import distance_angle
 from ..mean import mean_frechet_p2, mean_extrinsic
 
-
-def frequency_dispersion(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, average=True,
-                         additional_values=None,
-                         picks=None):
-    # import warnings
-    # warnings.deprecated("frequency_dispersion is deprecated. Use atfv instead.")
-    return atfv(tfrs, baseline, tmin, tmax, fmin, fmax, "angle", average, additional_values, picks)
+from ..utils import check_obj_type, add_values_to_df
 
 
-def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
-         additional_values=None,
-         picks=None):
-    # Spectral Angle Mapper
-    # Angular distance between two frequency representations
+def atfv(
+        tfrs,
+        baseline=None,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metrics="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
+):
+    """
+    Compute Across-Trial Frequency Variability values.
 
-    if picks is not None:
-        ch_names = picks
-    else:
-        ch_names = tfrs.ch_names
+    Parameters
+    ----------
+
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+        The MNE object containing either epochs or time–frequency data.
+
+    baseline : tuple | list | None, optional
+        Time interval used for baseline correction. If `None`, no baseline is applied.
+        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
+        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+
+    fmin, fmax : float | None, optional
+        Frequency range of interest. Only used when `obj` is a TFR object.
+
+    tmin, tmax : float | None, optional
+        Time range of interest, in seconds.
+
+    metrics : {"angle", "cosine"}, default="angle"
+        If "angle", the distance between the mean and each epoch is computed using
+        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+
+        If "cosine", the distance between the mean and each epoch is computed using
+        cosine distance. The mean is estimated using an extrinsic mean.
+
+    picks : str | array_like | None, optional
+        Channels to include.
+
+    average : bool, default=True
+        If `True`, values are averaged across epochs. If `False`, a value
+        is returned for each epoch.
+        If ``average=False``, the DataFrame contains one entry per channel,
+        where each entry consists of a JSON-encoded list representing the
+        per-epoch ERD/S values.
+
+    additional_values : dict | None, optional
+        Additional columns to append to the output dataframe.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing mean ERD/S values for each channel.
+
+    """
+    type_obj = check_obj_type(tfrs)
+
+    if type_obj != "tfr":
+        raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.BaseTFR")
 
     if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+        tfrs = tfrs.copy().apply_baseline(baseline, "percent")
 
-    df_list = []
-    for ch in ch_names:
-        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch).squeeze()
+    if picks is not None:
+        tfrs = tfrs.pick(picks=picks)
+
+    if metrics == "angle":
+        df_dict = {"channel": [], "atfva": []}
+    elif metrics == "cosine":
+        df_dict = {"channel": [], "atfvc": []}
+    else:
+        raise ValueError("metrics must be 'angle' or 'cosine'")
+
+    for ch in tfrs.ch_names:
+        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+        # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+        data = data.squeeze()
         # data.shape: n_epochs, n_freqs, n_times
 
         data = data.mean(2)
@@ -66,44 +124,15 @@ def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, m
         else:
             distances = json.dumps(distances)
 
-        df = pd.DataFrame()
-        # df["atfv"] = [distances]
+        df_dict["channel"].append(ch)
         if metrics == "angle":
-            df["atfva"] = [distances]
+            df_dict["atfva"].append(distances)
         elif metrics == "cosine":
-            df["atfvc"] = [distances]
-        df["channel"] = [ch]
+            df_dict["atfvc"].append(distances)
 
-        if additional_values is not None:
-            for key, value in additional_values.items():
-                df[key] = [value for m in range(df.shape[0])]
+    df = pd.DataFrame(df_dict)
 
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
+    if additional_values is not None:
+        df = add_values_to_df(df, additional_values)
 
     return df
-
-
-def atfv_cross_user(tfrs_list, tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
-                    additional_values=None):
-    data_list = []
-    for tfrs in tfrs_list:
-        if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
-            raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.AverageTFR. use tfrs.average()")
-
-        data_list.append(tfrs.get_data())
-
-    info = tfrs_list[0].info
-    times = tfrs_list[0].times
-    freqs = tfrs_list[0].freqs
-
-    tfrs = mne.time_frequency.EpochsTFRArray(
-        info=info,
-        data=np.array(data_list),
-        times=times,
-        freqs=freqs,
-    )
-
-    return atfv(tfrs, baseline=None, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metrics=metrics, average=True,
-                additional_values=additional_values)
