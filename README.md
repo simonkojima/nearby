@@ -39,8 +39,6 @@ pip install git+https://github.com/NeuroTechX/moabb.git#egg=moabb
 pip install filelock sphinx pydata-sphinx-theme sphinx-multiversion sphinx-gallery numpydoc tslearn autograd pymanopt[autograd]
 ```
 
-```
-
 1. Run following in docs
 
 ```
