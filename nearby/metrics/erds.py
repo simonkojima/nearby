@@ -143,7 +143,7 @@ def smeat(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing mean ERD/S values for each channel.
+        DataFrame containing standard deviations of ERD/S for each channel.
 
     """
     type_obj = check_obj_type(obj)

@@ -68,7 +68,7 @@ def atsv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing mean ERD/S values for each channel.
+        DataFrame containing atsv values
 
     """
     type_obj = check_obj_type(obj)

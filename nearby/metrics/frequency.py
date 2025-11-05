@@ -67,7 +67,7 @@ def atfv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing mean ERD/S values for each channel.
+        DataFrame containing atfv values for each channel.
 
     """
     type_obj = check_obj_type(tfrs)

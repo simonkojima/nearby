@@ -55,7 +55,7 @@ def attv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing mean ERD/S values for each channel.
+        DataFrame containing attv values for each channel.
 
     """
     try:
@@ -165,7 +165,7 @@ def wttv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing mean ERD/S values for each channel.
+        DataFrame containing wttv values for each channel.
 
     """
     type_obj = check_obj_type(obj)
