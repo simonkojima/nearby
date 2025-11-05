@@ -54,10 +54,3 @@ sphinx-apidoc -f -o ../docs/source ../nearby && make html
 sphinx-build -b html docs/source ~/git/nearby-docs/latest
 
 ```
-
-```
-
-sphinx-apidoc -f -o docs/source nearby && make -f ./docs/Makefile html && sphinx-build -b html docs/source ~
-/git/nearby-docs/latest
-
-```
