@@ -5,14 +5,17 @@ import pandas as pd
 
 import mne
 
+from ..utils import check_obj_type, add_values_to_df
+
 
 def attv(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
         average=True,
         additional_values=None,
 ):
@@ -21,18 +24,38 @@ def attv(
     except:
         raise RuntimeError("tslearn is not installed. pip install tslearn")
 
-    ch_names = tfrs.ch_names
+    type_obj = check_obj_type(obj)
 
     if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+        if type_obj == "tfr":
+            obj = obj.copy().apply_baseline(baseline, "percent")
+        elif type_obj == "epochs":
+            obj = obj.copy().apply_baseline(baseline)
 
-    df_list = []
-    for ch in ch_names:
-        data = np.squeeze(
-            tfrs.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-        ).mean(1)
+    if picks is not None:
+        obj = obj.pick(picks=picks)
+
+    df_dict = {"channel": [], "attv": []}
+    for ch in obj.ch_names:
+        if type_obj == "tfr":
+            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_freqs, n_times
+
+            data = data.mean(1)
+            # data.shape: n_epochs, n_times
+
+        elif type_obj == "epochs":
+            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # data.shape: n_epochs, n_channels, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_times
 
         mean = data.mean(0)
+        # mean.shape: n_times
 
         scores = []
         for m in range(data.shape[0]):
@@ -45,41 +68,56 @@ def attv(
         else:
             scores = json.dumps(scores)
 
-        df = pd.DataFrame()
-        df["channel"] = [ch]
-        df["attv"] = [scores]
+        df_dict["channel"].append(ch)
+        df_dict["attv"].append(scores)
 
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
+    df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
+        df = add_values_to_df(df, additional_values)
 
     return df
 
 
 def wttv(
-        tfrs,
-        baseline=[-1.0, 0.0],
-        fmin=7,
-        fmax=13,
-        tmin=0.5,
-        tmax=4.5,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
         additional_values=None,
         average=True,
 ):
-    ch_names = tfrs.ch_names
+    type_obj = check_obj_type(obj)
 
     if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+        if type_obj == "tfr":
+            obj = obj.copy().apply_baseline(baseline, "percent")
+        elif type_obj == "epochs":
+            obj = obj.copy().apply_baseline(baseline)
 
-    df_list = []
-    for ch in ch_names:
-        data = np.squeeze(
-            tfrs.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-        ).mean(1)
+    if picks is not None:
+        obj = obj.pick(picks=picks)
+
+    df_dict = {"channel": [], "wttv": []}
+    for ch in obj.ch_names:
+        if type_obj == "tfr":
+            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_freqs, n_times
+
+            data = data.mean(1)
+            # data.shape: n_epochs, n_times
+        elif type_obj == "epochs":
+            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # data.shape: n_epochs, n_channels, n_times
+
+            data = np.squeeze(data)
+            # data.shape: n_epochs, n_times
 
         sd = np.std(data, axis=1)
 
@@ -89,16 +127,12 @@ def wttv(
             sd = sd.tolist()
             sd = json.dumps(sd)
 
-        df = pd.DataFrame()
-        df["channel"] = [ch]
-        df["wttv"] = [sd]
+        df_dict["channel"].append(ch)
+        df_dict["wttv"].append(sd)
 
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
+    df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        for key, value in additional_values.items():
-            df[key] = [value for m in range(df.shape[0])]
+        df = add_values_to_df(df, additional_values)
 
     return df

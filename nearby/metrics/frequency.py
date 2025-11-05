@@ -9,24 +9,42 @@ import mne
 from ..distances import distance_angle
 from ..mean import mean_frechet_p2, mean_extrinsic
 
+from ..utils import check_obj_type, add_values_to_df
 
-def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, metrics="angle", average=True,
-         additional_values=None,
-         picks=None):
-    # Spectral Angle Mapper
-    # Angular distance between two frequency representations
 
-    if picks is not None:
-        ch_names = picks
-    else:
-        ch_names = tfrs.ch_names
+def atfv(tfrs,
+         baseline=None,
+         tmin=None,
+         tmax=None,
+         fmin=None,
+         fmax=None,
+         metrics="angle",
+         picks=None,
+         average=True,
+         additional_values=None):
+    type_obj = check_obj_type(tfrs)
+
+    if type_obj != "tfr":
+        raise ValueError("tfrs must be an instance of mne.time_frequency.tfr.BaseTFR")
 
     if baseline is not None:
-        tfrs = tfrs.copy().apply_baseline(baseline, mode="percent")
+        tfrs = tfrs.copy().apply_baseline(baseline, "percent")
 
-    df_list = []
-    for ch in ch_names:
-        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch).squeeze()
+    if picks is not None:
+        tfrs = tfrs.pick(picks=picks)
+
+    if metrics == "angle":
+        df_dict = {"channel": [], "atfva": []}
+    elif metrics == "cosine":
+        df_dict = {"channel": [], "atfvc": []}
+    else:
+        raise ValueError("metrics must be 'angle' or 'cosine'")
+
+    for ch in tfrs.ch_names:
+        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+        # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+        data = data.squeeze()
         # data.shape: n_epochs, n_freqs, n_times
 
         data = data.mean(2)
@@ -58,20 +76,15 @@ def atfv(tfrs, baseline=[-1.0, 0.0], tmin=0.5, tmax=4.5, fmin=None, fmax=None, m
         else:
             distances = json.dumps(distances)
 
-        df = pd.DataFrame()
-        # df["atfv"] = [distances]
+        df_dict["channel"].append(ch)
         if metrics == "angle":
-            df["atfva"] = [distances]
+            df_dict["atfva"].append(distances)
         elif metrics == "cosine":
-            df["atfvc"] = [distances]
-        df["channel"] = [ch]
+            df_dict["atfvc"].append(distances)
 
-        if additional_values is not None:
-            for key, value in additional_values.items():
-                df[key] = [value for m in range(df.shape[0])]
+    df = pd.DataFrame(df_dict)
 
-        df_list.append(df)
-
-    df = pd.concat(df_list, axis=0, ignore_index=True)
+    if additional_values is not None:
+        df = add_values_to_df(df, additional_values)
 
     return df
