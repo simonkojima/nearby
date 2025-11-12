@@ -7,15 +7,15 @@ from ..utils import check_obj_type, add_values_to_df
 
 
 def me(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute mean ERD/S values.
@@ -105,14 +105,14 @@ def me(
 
 
 def smeat(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
 ):
     """
     Compute standard deviation of mean ERD/S values across trials.

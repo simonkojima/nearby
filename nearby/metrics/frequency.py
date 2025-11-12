@@ -13,16 +13,16 @@ from ..utils import check_obj_type, add_values_to_df
 
 
 def atfv(
-        tfrs,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metrics="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metrics="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.

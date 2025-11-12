@@ -14,16 +14,16 @@ from ..utils import check_obj_type, add_values_to_df
 
 
 def atsv(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metrics="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metrics="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Spatial Variability values.
