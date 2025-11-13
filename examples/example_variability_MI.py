@@ -18,8 +18,8 @@ subject = 1
 l_freq = 1
 h_freq = 45
 resample = 128
-tmin = 0.0
-tmax = 8.5
+tmin = -2.0
+tmax = 5.0
 
 dataset = Dreyer2023()
 
@@ -55,8 +55,6 @@ epochs = epochs[["left_hand", "right_hand"]]
 epochs.load_data()
 
 epochs.resample(resample)
-
-epochs.shift_time(tshift=-3.0)
 
 # %%
 """

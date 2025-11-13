@@ -7,15 +7,15 @@ from ..utils import check_obj_type, add_values_to_df
 
 
 def me(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    average=True,
-    additional_values=None,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute mean ERD/S values.
@@ -55,6 +55,11 @@ def me(
     df : pandas.DataFrame
         DataFrame containing mean ERD/S values for each channel.
 
+    References
+    ----------
+    .. [1] S. Rimbert, D. Trocellier, F. Lotte,
+       "Is Event-Related Desynchronization variability correlated with BCI performance?",
+       MetroXRAINE 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
     """
     type_obj = check_obj_type(obj)
 
@@ -105,14 +110,14 @@ def me(
 
 
 def smeat(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    additional_values=None,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        additional_values=None,
 ):
     """
     Compute standard deviation of mean ERD/S values across trials.
@@ -145,6 +150,11 @@ def smeat(
     df : pandas.DataFrame
         DataFrame containing standard deviations of ERD/S for each channel.
 
+    References
+    ----------
+    .. [1] S. Rimbert, D. Trocellier, F. Lotte,
+       "Is Event-Related Desynchronization variability correlated with BCI performance?",
+       MetroXRAINE 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
     """
     type_obj = check_obj_type(obj)
 
