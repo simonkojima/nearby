@@ -2,6 +2,30 @@ import numpy as np
 import mne
 
 
+def get_group_wise_tfrs(tfrs_list):
+    data_list = []
+    for tfrs in tfrs_list:
+        if not isinstance(tfrs, mne.time_frequency.tfr.AverageTFR):
+            raise ValueError(
+                "tfrs must be an instance of mne.time_frequency.tfr.AverageTFR. use tfrs.average()"
+            )
+
+        data_list.append(tfrs.get_data())
+
+    info = tfrs_list[0].info
+    times = tfrs_list[0].times
+    freqs = tfrs_list[0].freqs
+
+    tfrs = mne.time_frequency.EpochsTFRArray(
+        info=info,
+        data=np.array(data_list),
+        times=times,
+        freqs=freqs,
+    )
+
+    return tfrs
+
+
 def concatenate_events(events_list, add_offset_sample=True):
     offset = np.max(events_list[0][:, 0])
 
