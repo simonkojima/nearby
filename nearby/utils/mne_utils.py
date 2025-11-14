@@ -29,7 +29,7 @@ def get_group_wise_tfrs(tfrs_list):
 def concatenate_events(events_list, add_offset_sample=True):
     offset = np.max(events_list[0][:, 0])
 
-    for events in events_list[1: len(events_list)]:
+    for events in events_list[1 : len(events_list)]:
         events[:, 0] += int(offset)
         offset = np.max(events[:, 0])
 
@@ -64,7 +64,7 @@ def concatenate_tfrs(tfrs_list, add_offset_event_id=True):
         ids = events[:, 2]
         offset = np.max(ids)
 
-        for tfrs in tfrs_list[1: len(tfrs_list)]:
+        for tfrs in tfrs_list[1 : len(tfrs_list)]:
             tfrs.events[:, 2] += int(offset)
             tfrs.event_id = {k: int(v + offset) for k, v in tfrs.event_id.items()}
             offset = np.max(tfrs.events[:, 2])
