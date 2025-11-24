@@ -1,4 +1,17 @@
+import numpy as np
 import mne
+
+
+def auto_windows(size, step, tmin, tmax):
+    start = np.arange(tmin, tmax, step)
+    end = start + size
+
+    windows = np.vstack([start, end]).T
+
+    I = np.where(end < tmax)[0]
+    windows = windows[I, :]
+
+    return windows
 
 
 def add_values_to_df(df, values):
@@ -13,5 +26,7 @@ def check_obj_type(obj):
     elif isinstance(obj, mne.epochs.BaseEpochs):
         type_obj = "epochs"
     else:
-        raise ValueError("obj must be an instance of mne.time_frequency.tfr.BaseTFR or mne.epochs.BaseEpochs")
+        raise ValueError(
+            "obj must be an instance of mne.time_frequency.tfr.BaseTFR or mne.epochs.BaseEpochs"
+        )
     return type_obj
