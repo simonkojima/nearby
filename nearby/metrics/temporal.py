@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import scipy.spatial
 import pandas as pd
 
 import mne
@@ -238,7 +239,7 @@ def wtsv(
         auto_window_step=0.1,
         tmin=None,
         tmax=None,
-        metrics="angle",
+        metric="angle",
         picks=None,
         average=True,
         additional_values=None,
@@ -263,7 +264,7 @@ def wtsv(
     tmin, tmax : float | None, optional
         Time range of interest, in seconds.
 
-    metrics : {"angle", "cosine"}, default="angle"
+    metric : {"angle", "cosine"}, default="angle"
         If "angle", the distance between the mean and each epoch is computed using
         angular distance. The mean is estimated using the Fréchet mean (p = 2).
 
@@ -290,9 +291,6 @@ def wtsv(
 
     """
     type_obj = check_obj_type(obj)
-
-    if type_obj == "epochs":
-        raise NotImplementedError("epochs is not implemented yet.")
 
     if baseline is not None:
         if type_obj == "tfr":
@@ -322,34 +320,44 @@ def wtsv(
                 tmax=obj.tmax,
             )
 
-            for window in windows:
-                data = obj.get_data(tmin=window[0], tmax=window[1])
-                # data.shape: n_epochs, n_channels, n_freqs, n_times
+        for window in windows:
+            data = obj.get_data(tmin=window[0], tmax=window[1])
+            # tfrs.shape: n_epochs, n_channels, n_freqs, n_times
+            # epochs.shape: n_epochs, n_channels, n_times
 
+            if type_obj == "tfr":
                 data = data.mean(2)
                 # data.shape: n_epochs, n_channels, n_times
 
-                data = data.mean(2)
-                # data.shape: n_epochs, n_channels
+            data = data.mean(2)
+            # data.shape: n_epochs, n_channels
 
-                data_list.append(data)
+            data_list.append(data)
+
+        data = np.array(data_list)
+        # data.shape: n_windows, n_epochs, n_channels
+
+        data = data.transpose(1, 0, 2)
+        # data.shape: n_epochs, n_windows, n_channels
 
     elif mode == "all_samples":
-        raise NotImplementedError("all_samples is not implemented yet.")
+        data = obj.get_data()
+        # tfrs.shape: n_epochs, n_channels, n_freqs, n_times
+        # epochs.shape: n_epochs, n_channels, n_times
+
+        if type_obj == "tfr":
+            data = data.mean(2)
+            # data.shape: n_epochs, n_channels, n_times
+        # In all_samples mode, n_times is equal to the number of windows
+        # data.shape: n_epochs, n_channels, n_windows
+
+        data = data.transpose(0, 2, 1)
+        # data.shape: n_epochs, n_windows, n_channels
+
     else:
         raise ValueError("mode must be 'windows' or 'all_samples'")
 
-    print(data_list)
-
-    data = np.array(data_list)
-    # data.shape: n_windows, n_epochs, n_channels
-
-    data = data.transpose(1, 0, 2)
-    # data.shape: n_epochs, n_windows, n_channels
-
     n_epochs, n_windows, _ = data.shape
-
-    print(data.shape)
 
     distances = []
 
@@ -357,7 +365,7 @@ def wtsv(
         data_trial = data[idx_trial, :, :].squeeze()
         # data_trial.shape: n_windows, n_channels
 
-        if metrics == "angle":
+        if metric == "angle":
             mean = mean_frechet_p2(data_trial, verbosity=0)
 
             distances_trial = []
@@ -365,9 +373,13 @@ def wtsv(
                 d = distance_angle(mean, data_trial[n, :])
                 distances_trial.append(d)
 
-        elif metrics == "cosine":
+        elif metric == "cosine":
             mean = mean_extrinsic(data_trial)
-            raise NotImplementedError("cosine is not implemented yet.")
+
+            distances_trial = []
+            for n in range(n_windows):
+                d = scipy.spatial.distance.cosine(mean, data_trial[n, :])
+                distances_trial.append(d)
 
         dispersion = np.mean(distances_trial)
 
@@ -384,4 +396,4 @@ def wtsv(
     if additional_values is not None:
         df = add_values_to_df(df, additional_values)
 
-    print(df)
+    return df
