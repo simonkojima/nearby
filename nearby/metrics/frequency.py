@@ -18,16 +18,16 @@ from ..utils import (
 
 
 def atfv(
-        tfrs,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metrics="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.
@@ -86,9 +86,9 @@ def atfv(
     if picks is not None:
         tfrs = tfrs.pick(picks=picks)
 
-    if metrics == "angle":
+    if metric == "angle":
         df_dict = {"channel": [], "atfva": []}
-    elif metrics == "cosine":
+    elif metric == "cosine":
         df_dict = {"channel": [], "atfvc": []}
     else:
         raise ValueError("metrics must be 'angle' or 'cosine'")
@@ -107,13 +107,13 @@ def atfv(
 
         distances = []
 
-        if metrics == "angle":
+        if metric == "angle":
             mean = mean_frechet_p2(data, verbosity=0)
 
             for n in range(n_epochs):
                 d = distance_angle(mean, data[n, :])
                 distances.append(d)
-        elif metrics == "cosine":
+        elif metric == "cosine":
             mean = mean_extrinsic(data)
 
             for n in range(n_epochs):
@@ -130,9 +130,9 @@ def atfv(
             distances = json.dumps(distances)
 
         df_dict["channel"].append(ch)
-        if metrics == "angle":
+        if metric == "angle":
             df_dict["atfva"].append(distances)
-        elif metrics == "cosine":
+        elif metric == "cosine":
             df_dict["atfvc"].append(distances)
 
     df = pd.DataFrame(df_dict)
@@ -144,20 +144,20 @@ def atfv(
 
 
 def wtfv(
-        tfrs,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Within-Trial Frequency Variability values.
@@ -325,17 +325,16 @@ def wtfv(
 
 
 def sg_atfv(
-        tfrs_A,
-        tfrs_B,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metrics="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs_A,
+    tfrs_B,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.
@@ -395,9 +394,9 @@ def sg_atfv(
         for n in range(len(tfrs_B)):
             tfrs_B[n] = tfrs_B[n].pick(picks=picks)
 
-    if metrics == "angle":
+    if metric == "angle":
         df_dict = {"channel": [], "sg_atfva": []}
-    elif metrics == "cosine":
+    elif metric == "cosine":
         df_dict = {"channel": [], "sg_atfvc": []}
     else:
         raise ValueError("metrics must be 'angle' or 'cosine'")
@@ -421,11 +420,11 @@ def sg_atfv(
 
         distances = []
 
-        if metrics == "angle":
+        if metric == "angle":
             for B in data_B:
                 d = distance_angle(data_A, B)
                 distances.append(d)
-        elif metrics == "cosine":
+        elif metric == "cosine":
             for B in data_B:
                 d = scipy.spatial.distance.cosine(data_A, B)
                 distances.append(d)
@@ -440,9 +439,9 @@ def sg_atfv(
             distances = json.dumps(distances)
 
         df_dict["channel"].append(ch)
-        if metrics == "angle":
+        if metric == "angle":
             df_dict["sg_atfva"].append(distances)
-        elif metrics == "cosine":
+        elif metric == "cosine":
             df_dict["sg_atfvc"].append(distances)
 
     df = pd.DataFrame(df_dict)

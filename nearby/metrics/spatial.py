@@ -303,7 +303,10 @@ def wtsv(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    df["wtsv"] = [distances]
+    if metric == "angle":
+        df["wtsva"] = [distances]
+    elif metric == "cosine":
+        df["wtsvc"] = [distances]
 
     if additional_values is not None:
         df = add_values_to_df(df, additional_values)
@@ -319,7 +322,7 @@ def sg_atsv(
         fmax=None,
         tmin=None,
         tmax=None,
-        metrics="angle",
+        metric="angle",
         picks=None,
         average=True,
         additional_values=None,
@@ -404,12 +407,12 @@ def sg_atsv(
 
     distances = []
 
-    if metrics == "cosine":
+    if metric == "cosine":
         for B in data_B:
             d = scipy.spatial.distance.cosine(data_A, B)
             distances.append(d)
 
-    elif metrics == "angle":
+    elif metric == "angle":
         for B in data_B:
             d = distance_angle(data_A, B)
             distances.append(d)
@@ -424,9 +427,9 @@ def sg_atsv(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    if metrics == "angle":
+    if metric == "angle":
         df["sg_atsva"] = [distances]
-    elif metrics == "cosine":
+    elif metric == "cosine":
         df["sg_atsvc"] = [distances]
 
     if additional_values is not None:

@@ -219,16 +219,20 @@ def wttv(
     return df
 
 
+'''
+
+This does not make sense...
+
 def sg_attv(
-        obj_A,
-        obj_B,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
-        average=True,
+    obj_A,
+    obj_B,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
+    average=True,
 ):
     """
     Compute SG_ATTV (Subject-to-Group Within-Trial Temporal Variability) values.
@@ -329,3 +333,5 @@ def sg_attv(
         df = add_values_to_df(df, additional_values)
 
     return df
+
+'''
