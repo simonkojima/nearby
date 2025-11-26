@@ -18,16 +18,16 @@ from ..utils import (
 
 
 def atfv(
-    tfrs,
-    baseline=None,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        tfrs,
+        baseline=None,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.
@@ -84,7 +84,7 @@ def atfv(
         tfrs = tfrs.copy().apply_baseline(baseline, "percent")
 
     if picks is not None:
-        tfrs = tfrs.pick(picks=picks)
+        tfrs = tfrs.copy().pick(picks=picks)
 
     if metric == "angle":
         df_dict = {"channel": [], "atfva": []}
@@ -144,20 +144,20 @@ def atfv(
 
 
 def wtfv(
-    tfrs,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        tfrs,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Frequency Variability values.
@@ -214,13 +214,13 @@ def wtfv(
         tfrs = tfrs.copy().apply_baseline(baseline, "percent")
 
     if picks is not None:
-        tfrs = tfrs.pick(picks=picks)
+        tfrs = tfrs.copy().pick(picks=picks)
 
     if (tmin is not None) or (tmax is not None):
-        tfrs = tfrs.crop(tmin=tmin, tmax=tmax)
+        tfrs = tfrs.copy().crop(tmin=tmin, tmax=tmax)
 
     if (fmin is not None) or (fmax is not None):
-        tfrs = tfrs.crop(fmin=fmin, fmax=fmax)
+        tfrs = tfrs.copy().crop(fmin=fmin, fmax=fmax)
 
     if metric == "angle":
         df_dict = {"channel": [], "wtfva": []}
@@ -324,20 +324,20 @@ def wtfv(
     return df
 
 
-def sg_atfv(
-    tfrs_A,
-    tfrs_B,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+def sgfv(
+        tfr_A,  # subject
+        tfrs_B,  # group
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
-    Compute Across-Trial Frequency Variability values.
+    Compute Subject-to-Group Frequency Variability values.
 
     Parameters
     ----------
@@ -382,26 +382,38 @@ def sg_atfv(
         DataFrame containing atfv values for each channel.
 
     """
-    type_obj = check_averaged_obj_type(tfrs_A)
+    # type_obj = check_averaged_obj_type(tfrs_A)
 
-    if type_obj != "tfr":
+    if not isinstance(tfr_A, mne.time_frequency.tfr.AverageTFR):
         raise ValueError(
-            "tfrs must be an instance of mne.time_frequency.tfr.AverageTFR"
+            "tfr_A must be an instance of mne.time_frequency.tfr.AverageTFR"
         )
 
+    if not isinstance(tfrs_B, mne.time_frequency.tfr.EpochsTFR):
+        if isinstance(tfrs_B, list) and (
+                not isinstance(tfrs_B[0], mne.time_frequency.tfr.AverageTFR)
+        ):
+            raise ValueError(
+                "tfr_B must be an instance of mne.time_frequency.tfr.EpochsTFR or list of mne.time_frequency.tfr.AverageTFR"
+            )
+
+    # make it list of tfr if tfrs_B is EpochsTFR
+    if isinstance(tfrs_B, mne.time_frequency.tfr.EpochsTFR):
+        tfrs_B = [tfrs_B[n].average() for n in range(len(tfrs_B))]
+
     if picks is not None:
-        tfrs_A = tfrs_A.pick(picks=picks)
+        tfr_A = tfr_A.copy().pick(picks=picks)
         for n in range(len(tfrs_B)):
-            tfrs_B[n] = tfrs_B[n].pick(picks=picks)
+            tfrs_B[n] = tfrs_B[n].copy().pick(picks=picks)
 
     if metric == "angle":
-        df_dict = {"channel": [], "sg_atfva": []}
+        df_dict = {"channel": [], "sgfva": []}
     elif metric == "cosine":
-        df_dict = {"channel": [], "sg_atfvc": []}
+        df_dict = {"channel": [], "sgfvc": []}
     else:
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
-    def proc(tfrs):
+    def proc(tfrs, ch):
         data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
         # data.shape: n_channels, n_freqs, n_times
 
@@ -413,10 +425,10 @@ def sg_atfv(
 
         return data
 
-    for ch in tfrs_A.ch_names:
+    for ch in tfr_A.ch_names:
 
-        data_A = proc(tfrs_A)
-        data_B = [proc(tfrs_B[n]) for n in range(len(tfrs_B))]
+        data_A = proc(tfr_A, ch=ch)
+        data_B = [proc(tfrs_B[n], ch=ch) for n in range(len(tfrs_B))]
 
         distances = []
 
@@ -440,9 +452,9 @@ def sg_atfv(
 
         df_dict["channel"].append(ch)
         if metric == "angle":
-            df_dict["sg_atfva"].append(distances)
+            df_dict["sgfva"].append(distances)
         elif metric == "cosine":
-            df_dict["sg_atfvc"].append(distances)
+            df_dict["sgfvc"].append(distances)
 
     df = pd.DataFrame(df_dict)
 

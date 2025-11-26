@@ -75,7 +75,7 @@ def attv(
             obj = obj.copy().apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        obj = obj.copy().pick(picks=picks)
 
     df_dict = {"channel": [], "attv": []}
     for ch in obj.ch_names:
@@ -180,7 +180,7 @@ def wttv(
             obj = obj.copy().apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        obj = obj.copy().pick(picks=picks)
 
     df_dict = {"channel": [], "wttv": []}
     for ch in obj.ch_names:
@@ -282,9 +282,9 @@ def sg_attv(
     type_obj = check_averaged_obj_type(obj_A)
 
     if picks is not None:
-        obj_A = obj_A.pick(picks=picks)
+        obj_A = obj_A.copy().pick(picks=picks)
         for n in range(len(obj_B)):
-            obj_B[n] = obj_B[n].pick(picks=picks)
+            obj_B[n] = obj_B[n].copy().pick(picks=picks)
 
     def proc_tfr(tfr):
         data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)

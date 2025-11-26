@@ -25,7 +25,7 @@ def atsv(
         fmax=None,
         tmin=None,
         tmax=None,
-        metrics="angle",
+        metric="angle",
         picks=None,
         average=True,
         additional_values=None,
@@ -85,7 +85,7 @@ def atsv(
             obj = obj.copy().apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        obj = obj.copy().pick(picks=picks)
 
     if type_obj == "tfr":
         data = obj.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
@@ -107,14 +107,14 @@ def atsv(
 
     distances = []
 
-    if metrics == "cosine":
+    if metric == "cosine":
         mean = mean_extrinsic(data)
 
         for n in range(n_epochs):
             d = scipy.spatial.distance.cosine(mean, data[n, :])
             distances.append(d)
 
-    elif metrics == "angle":
+    elif metric == "angle":
         mean = mean_frechet_p2(data, verbosity=0)
 
         for n in range(n_epochs):
@@ -131,9 +131,9 @@ def atsv(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    if metrics == "angle":
+    if metric == "angle":
         df["atsva"] = [distances]
-    elif metrics == "cosine":
+    elif metric == "cosine":
         df["atsvc"] = [distances]
 
     if additional_values is not None:
@@ -213,14 +213,14 @@ def wtsv(
             obj = obj.copy().apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        obj = obj.copy().pick(picks=picks)
 
     if (tmin is not None) or (tmax is not None):
-        obj = obj.crop(tmin=tmin, tmax=tmax)
+        obj = obj.copy().crop(tmin=tmin, tmax=tmax)
 
     if type_obj == "tfr":
         if (fmin is not None) or (fmax is not None):
-            obj = obj.crop(fmin=fmin, fmax=fmax)
+            obj = obj.copy().crop(fmin=fmin, fmax=fmax)
 
     data_list = []
     if mode == "windows":
@@ -314,9 +314,9 @@ def wtsv(
     return df
 
 
-def sg_atsv(
-        obj_A,
-        obj_B,
+def sgsv(
+        obj_A,  # subject
+        objs_B,  # group
         baseline=None,
         fmin=None,
         fmax=None,
@@ -375,10 +375,22 @@ def sg_atsv(
     """
     type_obj = check_averaged_obj_type(obj_A)
 
+    if not isinstance(objs_B, mne.time_frequency.tfr.EpochsTFR):
+        if isinstance(objs_B, list) and (
+                not isinstance(objs_B[0], mne.time_frequency.tfr.AverageTFR)
+        ):
+            raise ValueError(
+                "tfr_B must be an instance of mne.time_frequency.tfr.EpochsTFR or list of mne.time_frequency.tfr.AverageTFR"
+            )
+
+    # make it list of tfr if objs_B is EpochsTFR
+    if isinstance(objs_B, mne.time_frequency.tfr.EpochsTFR):
+        objs_B = [objs_B[n].average() for n in range(len(objs_B))]
+
     if picks is not None:
-        obj_A = obj_A.pick(picks=picks)
-        for n in range(len(obj_B)):
-            obj_B[n] = obj_B[n].pick(picks=picks)
+        obj_A = obj_A.copy().pick(picks=picks)
+        for n in range(len(objs_B)):
+            objs_B[n] = objs_B[n].copy().pick(picks=picks)
 
     def proc_tfr(tfr):
         data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax)
@@ -388,17 +400,17 @@ def sg_atsv(
         # data.shape: n_channels, n_times
 
         data = data.mean(1)
-        # data.shape: n_times
+        # data.shape: n_channels
 
         return data
 
     if type_obj == "tfr":
 
         data_A = proc_tfr(obj_A)
-        data_B = [proc_tfr(obj_B[n]) for n in range(len(obj_B))]
+        data_B = [proc_tfr(objs_B[n]) for n in range(len(objs_B))]
 
     elif type_obj == "epochs":
-        raise NotImplementedError("SG_ATTV is not implemented for epochs objects.")
+        raise NotImplementedError("SGSV is not implemented for epochs objects.")
         data = obj.get_data(tmin=tmin, tmax=tmax, units="uV")
         # data.shape: n_epochs, n_channels, n_times
 
@@ -428,9 +440,9 @@ def sg_atsv(
 
     df = pd.DataFrame()
     if metric == "angle":
-        df["sg_atsva"] = [distances]
+        df["sgsva"] = [distances]
     elif metric == "cosine":
-        df["sg_atsvc"] = [distances]
+        df["sgsvc"] = [distances]
 
     if additional_values is not None:
         df = add_values_to_df(df, additional_values)

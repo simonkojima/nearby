@@ -70,7 +70,7 @@ def me(
             obj = obj.copy().apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        obj = obj.copy().pick(picks=picks)
 
     df_dict = {"channel": [], "me": []}
     for ch in obj.ch_names:
@@ -165,7 +165,7 @@ def smeat(
             obj = obj.copy().apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        obj = obj.copy().pick(picks=picks)
 
     df_dict = {"channel": [], "smeat": []}
     for ch in obj.ch_names:
