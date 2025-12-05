@@ -12,15 +12,15 @@ from ..distances import distance_angle
 
 
 def attv(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Temporal Variability values.
@@ -122,15 +122,15 @@ def attv(
 
 
 def wttv(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
-        average=True,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
+    average=True,
 ):
     """
     Compute Within-Trial Temporal Variability values.

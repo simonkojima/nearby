@@ -328,7 +328,7 @@ def sgsv(
         additional_values=None,
 ):
     """
-    Compute Across-Trial Spatial Variability values.
+    Compute Subject-to-Group Spatial Variability values.
 
     Parameters
     ----------
@@ -370,7 +370,7 @@ def sgsv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atsv values
+        DataFrame containing sgsv values
 
     """
     type_obj = check_averaged_obj_type(obj_A)
