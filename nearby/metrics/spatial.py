@@ -317,7 +317,7 @@ def wtsv(
 def sgsv(
         obj_A,  # subject
         objs_B,  # group
-        baseline=None,
+        # baseline=None,
         fmin=None,
         fmax=None,
         tmin=None,
@@ -375,17 +375,21 @@ def sgsv(
     """
     type_obj = check_averaged_obj_type(obj_A)
 
-    if not isinstance(objs_B, mne.time_frequency.tfr.EpochsTFR):
-        if isinstance(objs_B, list) and (
-                not isinstance(objs_B[0], mne.time_frequency.tfr.AverageTFR)
-        ):
-            raise ValueError(
-                "tfr_B must be an instance of mne.time_frequency.tfr.EpochsTFR or list of mne.time_frequency.tfr.AverageTFR"
-            )
+    if not isinstance(objs_B, list):
+        raise ValueError("objs_B must be an list")
 
+    if not isinstance(objs_B[0], mne.time_frequency.tfr.AverageTFR) or not isinstance(
+            objs_B[0], mne.evoked.Evoked
+    ):
+        raise ValueError(
+            "tfr_B must be an list of mne.time_frequency.tfr.AverageTFR or mne.evoked.Evoked objects"
+        )
+
+    """
     # make it list of tfr if objs_B is EpochsTFR
     if isinstance(objs_B, mne.time_frequency.tfr.EpochsTFR):
         objs_B = [objs_B[n].average() for n in range(len(objs_B))]
+    """
 
     if picks is not None:
         obj_A = obj_A.copy().pick(picks=picks)

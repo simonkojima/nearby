@@ -35,9 +35,8 @@ def check_obj_type(obj):
 def check_averaged_obj_type(obj):
     if isinstance(obj, mne.time_frequency.tfr.AverageTFR):
         type_obj = "tfr"
-    elif isinstance(obj, mne.epochs.BaseEpochs):
-        raise NotImplementedError("average epochs not implemented yet")
-        type_obj = "epochs"
+    elif isinstance(obj, mne.evoked.Evoked):
+        type_obj = "evoked"
     else:
         raise ValueError(
             "obj must be an instance of mne.time_frequency.tfr.BaseTFR or mne.epochs.BaseEpochs"
