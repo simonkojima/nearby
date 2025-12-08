@@ -19,16 +19,16 @@ from ..utils import (
 
 
 def atsv(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Across-Trial Spatial Variability values.
@@ -143,20 +143,20 @@ def atsv(
 
 
 def wtsv(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Spatial Variability values.
@@ -315,17 +315,17 @@ def wtsv(
 
 
 def sgsv(
-    obj_A,  # subject
-    objs_B,  # group
-    # baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        obj_A,  # subject
+        objs_B,  # group
+        # baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Subject-to-Group Spatial Variability values.
@@ -378,8 +378,8 @@ def sgsv(
     if not isinstance(objs_B, list):
         raise ValueError("objs_B must be an list")
 
-    if not isinstance(objs_B[0], mne.time_frequency.tfr.AverageTFR) or not isinstance(
-        objs_B[0], mne.evoked.Evoked
+    if (not isinstance(objs_B[0], mne.time_frequency.tfr.AverageTFR)) and (
+            not isinstance(objs_B[0], mne.evoked.Evoked)
     ):
         raise ValueError(
             "tfr_B must be an list of mne.time_frequency.tfr.AverageTFR or mne.evoked.Evoked objects"

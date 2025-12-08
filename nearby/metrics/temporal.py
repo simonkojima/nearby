@@ -12,15 +12,15 @@ from ..distances import distance_angle
 
 
 def attv(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    average=True,
-    additional_values=None,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Across-Trial Temporal Variability values.
@@ -122,15 +122,15 @@ def attv(
 
 
 def wttv(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    additional_values=None,
-    average=True,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        additional_values=None,
+        average=True,
 ):
     """
     Compute Within-Trial Temporal Variability values.
@@ -219,20 +219,16 @@ def wttv(
     return df
 
 
-'''
-
-This does not make sense...
-
-def sg_attv(
-    obj_A,
-    obj_B,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    additional_values=None,
-    average=True,
+def sgtv(
+        obj_A,
+        objs_B,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        additional_values=None,
+        average=True,
 ):
     """
     Compute SG_ATTV (Subject-to-Group Within-Trial Temporal Variability) values.
@@ -281,10 +277,20 @@ def sg_attv(
 
     type_obj = check_averaged_obj_type(obj_A)
 
+    if not isinstance(objs_B, list):
+        raise ValueError("objs_B must be an list")
+
+    if (not isinstance(objs_B[0], mne.time_frequency.tfr.AverageTFR)) and (
+            not isinstance(objs_B[0], mne.evoked.Evoked)
+    ):
+        raise ValueError(
+            "tfr_B must be an list of mne.time_frequency.tfr.AverageTFR or mne.evoked.Evoked objects"
+        )
+
     if picks is not None:
         obj_A = obj_A.copy().pick(picks=picks)
-        for n in range(len(obj_B)):
-            obj_B[n] = obj_B[n].copy().pick(picks=picks)
+        for n in range(len(objs_B)):
+            objs_B[n] = objs_B[n].copy().pick(picks=picks)
 
     def proc_tfr(tfr):
         data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
@@ -298,12 +304,12 @@ def sg_attv(
 
         return data
 
-    df_dict = {"channel": [], "sg_attv": []}
+    df_dict = {"channel": [], "sgtv": []}
     for ch in obj_A.ch_names:
         if type_obj == "tfr":
 
             data_A = proc_tfr(obj_A)
-            data_B = [proc_tfr(obj_B[n]) for n in range(len(obj_B))]
+            data_B = [proc_tfr(objs_B[n]) for n in range(len(objs_B))]
 
         elif type_obj == "epochs":
             raise NotImplementedError("SG_ATTV is not implemented for epochs objects.")
@@ -325,7 +331,7 @@ def sg_attv(
             scores = json.dumps(scores)
 
         df_dict["channel"].append(ch)
-        df_dict["sg_attv"].append(scores)
+        df_dict["sgtv"].append(scores)
 
     df = pd.DataFrame(df_dict)
 
@@ -333,5 +339,3 @@ def sg_attv(
         df = add_values_to_df(df, additional_values)
 
     return df
-
-'''

@@ -18,16 +18,16 @@ from ..utils import (
 
 
 def atfv(
-    tfrs,
-    baseline=None,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        tfrs,
+        baseline=None,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.
@@ -144,20 +144,20 @@ def atfv(
 
 
 def wtfv(
-    tfrs,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        tfrs,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Frequency Variability values.
@@ -325,16 +325,16 @@ def wtfv(
 
 
 def sgfv(
-    tfr_A,  # subject
-    tfrs_B,  # group
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        tfr_A,  # subject
+        tfrs_B,  # group
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Subject-to-Group Frequency Variability values.
@@ -389,6 +389,12 @@ def sgfv(
             "tfr_A must be an instance of mne.time_frequency.tfr.AverageTFR"
         )
 
+    if not isinstance(tfrs_B, list):
+        raise ValueError("tfrs_B must be an list")
+
+    if not isinstance(tfrs_B[0], mne.time_frequency.tfr.AverageTFR):
+        raise ValueError("tfrs_B must be an list of mne.time_frequency.tfr.AverageTFR")
+    """
     if not isinstance(tfrs_B, mne.time_frequency.tfr.EpochsTFR):
         if isinstance(tfrs_B, list) and (
             not isinstance(tfrs_B[0], mne.time_frequency.tfr.AverageTFR)
@@ -396,6 +402,7 @@ def sgfv(
             raise ValueError(
                 "tfr_B must be an instance of mne.time_frequency.tfr.EpochsTFR or list of mne.time_frequency.tfr.AverageTFR"
             )
+    """
 
     # make it list of tfr if tfrs_B is EpochsTFR
     if isinstance(tfrs_B, mne.time_frequency.tfr.EpochsTFR):
