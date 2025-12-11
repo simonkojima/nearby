@@ -1,11 +1,10 @@
 """
-Example: Variability of ERP in a auditory task
+Example: Variability of ERP in an auditory task
 ============================================
 """
 
 # %%
 import mne
-import pandas as pd
 import nearby
 from moabb.datasets import Kojima2024B
 
