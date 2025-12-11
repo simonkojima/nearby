@@ -26,6 +26,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
     "sphinx_multiversion",
     "sphinx_gallery.gen_gallery",
     "numpydoc",
