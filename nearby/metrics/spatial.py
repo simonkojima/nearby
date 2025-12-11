@@ -78,7 +78,7 @@ def within_trial_spatial(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atsv values
+        DataFrame containing variability values
 
     """
     type_obj = get_obj_type(obj)
@@ -268,7 +268,7 @@ def between_trial_spatial(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atsv values
+        DataFrame containing variability values
 
     """
     type_obj = get_obj_type(obj)
@@ -401,7 +401,7 @@ def between_average_spatial(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing sgsv values
+        DataFrame containing variability values
 
     """
 
@@ -547,7 +547,7 @@ def atsv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atsv values
+        DataFrame containing variability values
 
     """
     type_obj = check_obj_type(obj)

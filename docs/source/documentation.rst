@@ -38,6 +38,17 @@ Between-Average Variability
    nearby.metrics.between_average_spatial
    nearby.metrics.between_average_frequency
 
+Miscellaneous Metrics
+------------------------
+
+.. autosummary::
+   :toctree:
+   :caption: nearby.metrics
+   :recursive:
+   
+   nearby.metrics.me
+   nearby.metrics.smeat
+
 Distances
 ---------
 

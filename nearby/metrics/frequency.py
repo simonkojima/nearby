@@ -77,7 +77,7 @@ def within_trial_frequency(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atsv values
+        DataFrame containing variability values
 
     """
     type_obj = get_obj_type(tfrs)
@@ -261,7 +261,7 @@ def between_trial_frequency(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atfv values for each channel.
+        DataFrame containing variability values for each channel.
 
     """
     type_obj = get_obj_type(tfrs)
@@ -390,7 +390,7 @@ def between_average_frequency(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atfv values for each channel.
+        DataFrame containing variability values for each channel.
 
     """
     # type_obj = check_averaged_obj_type(tfrs_A)
@@ -541,7 +541,7 @@ def atfv(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing atfv values for each channel.
+        DataFrame containing variability values for each channel.
 
     """
     type_obj = check_obj_type(tfrs)

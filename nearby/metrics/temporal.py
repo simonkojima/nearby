@@ -32,7 +32,7 @@ def within_trial_temporal(
     Parameters
     ----------
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
+    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.EpochsTFR``
         The MNE object containing either epochs or time–frequency data.
 
     baseline : tuple | list | None, optional
@@ -62,10 +62,9 @@ def within_trial_temporal(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing wttv values for each channel.
+        DataFrame containing variability values for each channel.
 
     """
-    # type_obj = check_obj_type(obj)
     type_obj = get_obj_type(obj)
 
     if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
@@ -166,7 +165,7 @@ def between_trial_temporal(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing attv values for each channel.
+        DataFrame containing variability values for each channel.
 
     """
 
@@ -277,7 +276,7 @@ def between_average_temporal(
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing wttv values for each channel.
+        DataFrame containing variability values for each channel.
 
     """
 
