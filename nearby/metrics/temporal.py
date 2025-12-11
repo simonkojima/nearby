@@ -93,7 +93,7 @@ def within_trial_temporal(
 
             data = data.mean(1)
             # data.shape: n_epochs, n_times
-        elif type_obj == "epochs":
+        elif type_obj == "Epochs":
             data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
             # data.shape: n_epochs, n_channels, n_times
 
@@ -188,7 +188,7 @@ def between_trial_temporal(
 
     df_dict = {"channel": [], "between_trial_temporal": []}
     for ch in obj.ch_names:
-        if type_obj == "tfr":
+        if type_obj == "EpochsTFR":
             data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
             # data.shape: n_epochs, n_channels, n_freqs, n_times
 
@@ -198,7 +198,7 @@ def between_trial_temporal(
             data = data.mean(1)
             # data.shape: n_epochs, n_times
 
-        elif type_obj == "epochs":
+        elif type_obj == "Epochs":
             data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
             # data.shape: n_epochs, n_channels, n_times
 
@@ -295,10 +295,13 @@ def between_average_temporal(
     if type_obj_A not in type_objs_B:
         raise ValueError("obj_A and objs_B must be of the same type.")
 
+    obj_A = obj_A.copy()
+    objs_B = [objs_B[n].copy() for n in range(len(objs_B))]
+
     if picks is not None:
-        obj_A = obj_A.copy().pick(picks=picks)
+        obj_A = obj_A.pick(picks=picks)
         for n in range(len(objs_B)):
-            objs_B[n] = objs_B[n].copy().pick(picks=picks)
+            objs_B[n] = objs_B[n].pick(picks=picks)
 
     def proc_tfr(tfr):
         data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)

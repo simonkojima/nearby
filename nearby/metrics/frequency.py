@@ -93,11 +93,13 @@ def within_trial_frequency(
     if picks is not None:
         tfrs = tfrs.pick(picks=picks)
 
+    """
     if (tmin is not None) or (tmax is not None):
         tfrs = tfrs.crop(tmin=tmin, tmax=tmax)
 
     if (fmin is not None) or (fmax is not None):
         tfrs = tfrs.crop(fmin=fmin, fmax=fmax)
+    """
 
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")
@@ -110,14 +112,16 @@ def within_trial_frequency(
             windows = auto_windows(
                 size=auto_window_size,
                 step=auto_window_step,
-                tmin=tfrs.tmin,
-                tmax=tfrs.tmax,
+                tmin=tmin,
+                tmax=tmax,
             )
 
         for ch in tfrs.ch_names:
             data_dict[ch] = []
             for window in windows:
-                data = tfrs.get_data(tmin=window[0], tmax=window[1], picks=ch)
+                data = tfrs.get_data(
+                    tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax, picks=ch
+                )
                 # data.shape: n_epochs, n_channels, n_freqs, n_times
 
                 data = data.squeeze()
@@ -136,7 +140,7 @@ def within_trial_frequency(
 
     elif mode == "all_samples":
         for ch in tfrs.ch_names:
-            data = tfrs.get_data(picks=ch)
+            data = tfrs.get_data(fmin=fmin, fmax=fmax, picks=ch)
             # tfrs.shape: n_epochs, n_channels, n_freqs, n_times
 
             data = data.squeeze()
@@ -413,6 +417,7 @@ def between_average_frequency(
         for n in range(len(tfrs_B)):
             tfrs_B[n] = tfrs_B[n].pick(picks=picks)
 
+    """
     if (tmin is not None) or (tmax is not None):
         tfr_A = tfr_A.crop(tmin=tmin, tmax=tmax)
         tfrs_B = [tfrs_B[n].crop(tmin=tmin, tmax=tmax) for n in range(len(tfrs_B))]
@@ -420,6 +425,7 @@ def between_average_frequency(
     if (fmin is not None) or (fmax is not None):
         tfr_A = tfr_A.crop(fmin=fmin, fmax=fmax)
         tfrs_B = [tfrs_B[n].crop(fmin=fmin, fmax=fmax) for n in range(len(tfrs_B))]
+    """
 
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")

@@ -4,14 +4,6 @@ nearby.metrics package
 Submodules
 ----------
 
-nearby.metrics.erds module
---------------------------
-
-.. automodule:: nearby.metrics.erds
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 nearby.metrics.frequency module
 -------------------------------
 

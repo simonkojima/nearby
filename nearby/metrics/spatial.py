@@ -97,12 +97,14 @@ def within_trial_spatial(
     if picks is not None:
         obj = obj.pick(picks=picks)
 
+    """
     if (tmin is not None) or (tmax is not None):
         obj = obj.crop(tmin=tmin, tmax=tmax)
 
     if type_obj == "EpochsTFR":
         if (fmin is not None) or (fmax is not None):
             obj = obj.crop(fmin=fmin, fmax=fmax)
+    """
 
     data_list = []
     if mode == "windows":
@@ -110,9 +112,12 @@ def within_trial_spatial(
             windows = auto_windows(
                 size=auto_window_size,
                 step=auto_window_step,
-                tmin=obj.tmin,
-                tmax=obj.tmax,
+                tmin=tmin,
+                tmax=tmax,
             )
+
+            if (windows.ndim != 2) or (windows.shape[0] == 1):
+                raise ValueError(f"Two or more windows must be specified. {windows=}")
 
         for window in windows:
             if type_obj == "EpochsTFR":

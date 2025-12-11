@@ -45,13 +45,7 @@ smv_remote_whitelist = r"^origin$"
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 html_theme_options = {
-    "default_mode": "light",
     "logo": {"image_light": "logo-light.png", "image_dark": "logo-dark.png"},
-    "version_dropdown": True,
-    "version_info": {
-        "name": "Version",
-        "current_version": release,
-    },
     "navbar_end": ["theme-switcher", "version-switcher"],
     "switcher": {
         "json_url": "https://simonkojima.github.io/nearby-docs/versions.json",

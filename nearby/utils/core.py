@@ -8,7 +8,7 @@ def auto_windows(size, step, tmin, tmax):
 
     windows = np.vstack([start, end]).T
 
-    I = np.where(end < tmax)[0]
+    I = np.where(end <= tmax)[0]
     windows = windows[I, :]
 
     return windows
