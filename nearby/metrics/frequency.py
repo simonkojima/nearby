@@ -19,20 +19,20 @@ from ..utils import (
 
 
 def within_trial_frequency(
-        tfrs,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Within-Trial Frequency Variability values.
@@ -207,16 +207,16 @@ def within_trial_frequency(
 
 
 def between_trial_frequency(
-        tfrs,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.
@@ -336,16 +336,16 @@ def between_trial_frequency(
 
 
 def between_average_frequency(
-        tfr_A,  # subject
-        tfrs_B,  # group
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfr_A,  # subject
+    tfrs_B,  # group
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Subject-to-Group Frequency Variability values.
@@ -487,16 +487,16 @@ def between_average_frequency(
 
 
 def atfv(
-        tfrs,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Across-Trial Frequency Variability values.
@@ -613,20 +613,20 @@ def atfv(
 
 
 def wtfv(
-        tfrs,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Within-Trial Frequency Variability values.
@@ -794,16 +794,16 @@ def wtfv(
 
 
 def sgfv(
-        tfr_A,  # subject
-        tfrs_B,  # group
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfr_A,  # subject
+    tfrs_B,  # group
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Subject-to-Group Frequency Variability values.

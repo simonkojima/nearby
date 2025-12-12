@@ -14,8 +14,8 @@ import sys
 sys.path.insert(0, os.path.abspath("../.."))
 
 project = "Nearby"
-copyright = "2025, Simon Kojima"
-author = "Simon Kojima"
+copyright = "2025, Nearby contributors"
+author = "Simon Kojima, Alex Pepi, Fabien Lotte"
 release = nearby.__version__
 
 # -- General configuration ---------------------------------------------------

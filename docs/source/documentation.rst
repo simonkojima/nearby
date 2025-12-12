@@ -7,7 +7,7 @@ Within-Trial Variability
 
 .. autosummary::
    :toctree:
-   :caption: nearby.metrics
+   :caption: Within-Trial Variability
    :recursive:
    
    nearby.metrics.within_trial_temporal
@@ -19,7 +19,7 @@ Between-Trial Variability
 
 .. autosummary::
    :toctree:
-   :caption: nearby.metrics
+   :caption: Between-Trial Variability
    :recursive:
    
    nearby.metrics.between_trial_temporal
@@ -31,7 +31,7 @@ Between-Average Variability
 
 .. autosummary::
    :toctree:
-   :caption: nearby.metrics
+   :caption: Between-Average Variability
    :recursive:
    
    nearby.metrics.between_average_temporal
@@ -43,46 +43,39 @@ Miscellaneous Metrics
 
 .. autosummary::
    :toctree:
-   :caption: nearby.metrics
+   :caption: Miscellaneous Metrics
    :recursive:
    
    nearby.metrics.me
    nearby.metrics.smeat
+   nearby.metrics.class_stability
 
 Distances
 ---------
 
 .. autosummary::
    :toctree:
-   :caption: nearby.distances
+   :caption: Distances
    :recursive:
    
    nearby.distances.distance_angle
 
-mean
+Mean
 ----
 
 .. autosummary::
    :toctree:
-   :caption: nearby.mean
+   :caption: Mean
    :recursive:
    
    nearby.mean.mean_extrinsic
    nearby.mean.mean_frechet_p2
 
-nearby
-------
-.. autosummary::
-   :toctree:
-   :caption: nearby modules
-   :recursive:
-
-
-nearby.metrics
+[OLD] nearby.metrics
 --------------
 .. autosummary::
    :toctree:
-   :caption: nearby.metrics
+   :caption: [OLD] nearby.metrics
    :recursive:
    
    nearby.metrics.me
