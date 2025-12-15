@@ -24,5 +24,6 @@ dependencies = [
 [tool.setuptools.dynamic]
 version = { attr = "nearby.__version__" }
 
-[tool.setuptools]
-packages = ["nearby"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nearby*"]

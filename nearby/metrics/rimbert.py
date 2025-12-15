@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-import mne
-
 from ..utils import check_obj_type, add_values_to_df
 
 

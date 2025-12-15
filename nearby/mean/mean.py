@@ -1,7 +1,6 @@
 import numpy as np
 import autograd.numpy as anp
 import pymanopt
-import warnings
 
 
 def mean_extrinsic(X):
