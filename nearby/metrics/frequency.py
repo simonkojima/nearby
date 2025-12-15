@@ -1,9 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
-
 import scipy
-
 import mne
 
 from ..distances import distance_angle

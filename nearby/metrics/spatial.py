@@ -1,10 +1,7 @@
 import json
-import warnings
-
 import numpy as np
 import scipy
 import pandas as pd
-
 import mne
 
 from ..distances import distance_angle
