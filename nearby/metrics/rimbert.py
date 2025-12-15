@@ -5,15 +5,58 @@ from ..utils import check_obj_type, add_values_to_df
 
 
 def me(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    average=True,
-    additional_values=None,
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        average=True,
+        additional_values=None,
+):
+    """
+    alias for old function 'me'
+
+    It will be deprecated in the future.
+    Use 'mean_erds' instead.
+    """
+    return mean_erds(
+        obj, baseline, fmin, fmax, tmin, tmax, picks, average, additional_values
+    ).rename(columns={"mean_erds": "me"})
+
+
+def smeat(
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        additional_values=None,
+):
+    """
+    alias for old function 'smeat'
+
+    It will be deprecated in the future.
+    Use 'standard_deviation_erds' instead.
+    """
+    return standard_deviation_erds(
+        obj, baseline, fmin, fmax, tmin, tmax, picks, additional_values
+    ).rename(columns={"standard_deviation_erds": "smeat"})
+
+
+def mean_erds(
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute mean ERD/S values.
@@ -70,7 +113,7 @@ def me(
     if picks is not None:
         obj = obj.copy().pick(picks=picks)
 
-    df_dict = {"channel": [], "me": []}
+    df_dict = {"channel": [], "mean_erds": []}
     for ch in obj.ch_names:
 
         if type_obj == "tfr":
@@ -97,7 +140,7 @@ def me(
             mean = mean.mean(0)
 
         df_dict["channel"].append(ch)
-        df_dict["me"].append(mean)
+        df_dict["mean_erds"].append(mean)
 
     df = pd.DataFrame(df_dict)
 
@@ -107,15 +150,15 @@ def me(
     return df
 
 
-def smeat(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    additional_values=None,
+def standard_deviation_erds(
+        obj,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        additional_values=None,
 ):
     """
     Compute standard deviation of mean ERD/S values across trials.
@@ -165,7 +208,7 @@ def smeat(
     if picks is not None:
         obj = obj.copy().pick(picks=picks)
 
-    df_dict = {"channel": [], "smeat": []}
+    df_dict = {"channel": [], "standard_deviation_erds": []}
     for ch in obj.ch_names:
         if type_obj == "tfr":
             data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
@@ -192,7 +235,7 @@ def smeat(
         std = np.std(data)
 
         df_dict["channel"].append(ch)
-        df_dict["smeat"].append(std)
+        df_dict["standard_deviation_erds"].append(std)
 
     df = pd.DataFrame(df_dict)
 
