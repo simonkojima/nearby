@@ -5,7 +5,14 @@ import pandas as pd
 from ..utils import add_values_to_df
 
 
-def class_stability(covs, additional_values=None):
+def class_stability(
+        epochs=None,
+        covs=None,
+        additional_values=None,
+        estimator="scm",
+        tmin=None,
+        tmax=None,
+):
     """
     Compute a Riemannian geometry-based class stability score from covariance matrices.
 
@@ -65,6 +72,15 @@ def class_stability(covs, additional_values=None):
     .. [1] F. Lotte & C. Jeunet, "Defining and quantifying users' mental imagery-based BCI skills: a first step",
        Journal of Neural Engineering. DOI: `10.1088/1741-2552/aac577 <https://doi.org/10.1088/1741-2552/aac577>`_
     """
+
+    if (epochs is None) and (covs is None):
+        raise ValueError("Either epochs or covs must be provided.")
+
+    if (epochs is not None) and (covs is None):
+        covs = pyriemann.estimation.Covariances(estimator=estimator).fit_transform(
+            epochs.get_data(units="uV", tmin=tmin, tmax=tmax)
+        )
+
     covs = np.array(covs)
 
     if covs.ndim != 3:
