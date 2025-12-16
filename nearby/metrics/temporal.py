@@ -294,6 +294,8 @@ def between_average_temporal(
                     obj_centroid = mne.time_frequency.combine_tfr(objs, weights=weights)
             case _:
                 raise NotImplementedError(f"centroid={centroid} is not implemented.")
+    else:
+        obj_centroid = centroid
 
     type_obj_centroid = get_obj_type(obj_centroid)
     if not ((type_obj_centroid == "Evoked") or (type_obj_centroid == "AverageTFR")):

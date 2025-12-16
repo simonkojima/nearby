@@ -343,6 +343,7 @@ def between_average_frequency(
         metric="angle",
         picks=None,
         average=True,
+        weights="nave",
         additional_values=None,
 ):
     """
@@ -396,9 +397,11 @@ def between_average_frequency(
     if isinstance(centroid, str):
         match centroid:
             case "mean":
-                tfr_centroid = mne.time_frequency.combine_tfr(objs, weights=weights)
+                tfr_centroid = mne.time_frequency.combine_tfr(tfrs, weights=weights)
             case _:
                 raise NotImplementedError(f"centroid={centroid} is not implemented.")
+    else:
+        tfr_centroid = centroid
 
     type_tfr_centroid = get_obj_type(tfr_centroid)
     type_tfrs = get_obj_type(tfrs)
