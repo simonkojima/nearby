@@ -46,8 +46,8 @@ Miscellaneous Metrics
    :caption: Miscellaneous Metrics
    :recursive:
    
-   nearby.metrics.me
-   nearby.metrics.smeat
+   nearby.metrics.mean_erds
+   nearby.metrics.standard_deviation_erds
    nearby.metrics.class_stability
 
 Distances
