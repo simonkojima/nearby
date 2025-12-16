@@ -5,15 +5,15 @@ from ..utils import check_obj_type, add_values_to_df
 
 
 def me(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     alias for old function 'me'
@@ -27,14 +27,14 @@ def me(
 
 
 def smeat(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
 ):
     """
     alias for old function 'smeat'
@@ -48,15 +48,15 @@ def smeat(
 
 
 def mean_erds(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute mean ERD/S values.
@@ -151,14 +151,14 @@ def mean_erds(
 
 
 def standard_deviation_erds(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
 ):
     """
     Compute standard deviation of mean ERD/S values across trials.

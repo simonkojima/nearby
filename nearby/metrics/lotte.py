@@ -6,12 +6,12 @@ from ..utils import add_values_to_df
 
 
 def class_stability(
-        epochs=None,
-        covs=None,
-        additional_values=None,
-        estimator="scm",
-        tmin=None,
-        tmax=None,
+    epochs=None,
+    covs=None,
+    additional_values=None,
+    estimator="scm",
+    tmin=None,
+    tmax=None,
 ):
     """
     Compute a Riemannian geometry-based class stability score from covariance matrices.
