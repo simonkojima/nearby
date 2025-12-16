@@ -334,8 +334,8 @@ def between_trial_frequency(
 
 
 def between_average_frequency(
-        tfr_A,  # subject
-        tfrs_B,  # group
+        tfrs,
+        centroid="mean",
         tmin=None,
         tmax=None,
         fmin=None,
@@ -393,37 +393,29 @@ def between_average_frequency(
     """
     # type_obj = check_averaged_obj_type(tfrs_A)
 
-    type_tfr_A = get_obj_type(tfr_A)
-    type_tfrs_B = get_obj_type(tfrs_B)
+    if isinstance(centroid, str):
+        match centroid:
+            case "mean":
+                tfr_centroid = mne.time_frequency.combine_tfr(objs, weights=weights)
+            case _:
+                raise NotImplementedError(f"centroid={centroid} is not implemented.")
 
-    if not (type_tfr_A == "AverageTFR"):
-        raise ValueError("tfr_A must be an instance of AverageTFR objects.")
+    type_tfr_centroid = get_obj_type(tfr_centroid)
+    type_tfrs = get_obj_type(tfrs)
 
-    if not (type_tfrs_B == "list_AverageTFR"):
-        raise ValueError(
-            "objs_B must be an instance of list of Evoked or AverageTFR objects."
-        )
+    if not (type_tfr_centroid == "AverageTFR"):
+        raise ValueError("centroid must be an instance of AverageTFR objects.")
 
-    if type_tfr_A not in type_tfrs_B:
-        raise ValueError("obj_A and objs_B must be of the same type.")
+    if not (type_tfrs == "list_AverageTFR"):
+        raise ValueError("tfrs must be an instance of list of AverageTFR objects.")
 
-    tfr_A = tfr_A.copy()
-    tfrs_B = [tfrs_B[n].copy() for n in range(len(tfrs_B))]
+    tfr_centroid = tfr_centroid.copy()
+    tfrs = [tfrs[n].copy() for n in range(len(tfrs))]
 
     if picks is not None:
-        tfr_A = tfr_A.pick(picks=picks)
-        for n in range(len(tfrs_B)):
-            tfrs_B[n] = tfrs_B[n].pick(picks=picks)
-
-    """
-    if (tmin is not None) or (tmax is not None):
-        tfr_A = tfr_A.crop(tmin=tmin, tmax=tmax)
-        tfrs_B = [tfrs_B[n].crop(tmin=tmin, tmax=tmax) for n in range(len(tfrs_B))]
-
-    if (fmin is not None) or (fmax is not None):
-        tfr_A = tfr_A.crop(fmin=fmin, fmax=fmax)
-        tfrs_B = [tfrs_B[n].crop(fmin=fmin, fmax=fmax) for n in range(len(tfrs_B))]
-    """
+        tfr_centroid = tfr_centroid.pick(picks=picks)
+        for n in range(len(tfrs)):
+            tfrs[n] = tfrs[n].pick(picks=picks)
 
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")
@@ -442,20 +434,20 @@ def between_average_frequency(
 
         return data
 
-    for ch in tfr_A.ch_names:
+    for ch in tfr_centroid.ch_names:
 
-        data_A = proc(tfr_A, ch=ch)
-        data_B = [proc(tfrs_B[n], ch=ch) for n in range(len(tfrs_B))]
+        data_centroid = proc(tfr_centroid, ch=ch)
+        data_list = [proc(tfrs[n], ch=ch) for n in range(len(tfrs))]
 
         distances = []
 
         if metric == "angle":
-            for B in data_B:
-                d = distance_angle(data_A, B)
+            for data in data_list:
+                d = distance_angle(data_centroid, data)
                 distances.append(d)
         elif metric == "cosine":
-            for B in data_B:
-                d = scipy.spatial.distance.cosine(data_A, B)
+            for data in data_list:
+                d = scipy.spatial.distance.cosine(data_centroid, data)
                 distances.append(d)
 
         else:
@@ -468,12 +460,6 @@ def between_average_frequency(
             distances = json.dumps(distances)
 
         df_dict["channel"].append(ch)
-        """
-        if metric == "angle":
-            df_dict["sgfva"].append(distances)
-        elif metric == "cosine":
-            df_dict["sgfvc"].append(distances)
-        """
         df_dict["between_average_frequency"].append(distances)
 
     df = pd.DataFrame(df_dict)

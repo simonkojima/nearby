@@ -343,9 +343,8 @@ def between_trial_spatial(
 
 
 def between_average_spatial(
-        obj_A,  # subject
-        objs_B,  # group
-        # baseline=None,
+        objs,
+        centroid="mean",
         fmin=None,
         fmax=None,
         tmin=None,
@@ -353,6 +352,7 @@ def between_average_spatial(
         metric="angle",
         picks=None,
         average=True,
+        weights="nave",
         additional_values=None,
 ):
     """
@@ -402,26 +402,39 @@ def between_average_spatial(
 
     """
 
-    type_obj_A = get_obj_type(obj_A)
-    type_objs_B = get_obj_type(objs_B)
+    type_objs = get_obj_type(objs)
 
-    if not ((type_obj_A == "Evoked") or (type_obj_A == "AverageTFR")):
-        raise ValueError("obj_A must be an instance of Evoked or AverageTFR objects.")
-
-    if not ((type_objs_B == "list_Evoked") or (type_objs_B == "list_AverageTFR")):
+    if not ((type_objs == "list_Evoked") or (type_objs == "list_AverageTFR")):
         raise ValueError(
-            "objs_B must be an instance of list of Evoked or AverageTFR objects."
+            "objs must be an instance of list of Evoked or AverageTFR objects."
         )
 
-    if type_obj_A not in type_objs_B:
-        raise ValueError("obj_A and objs_B must be of the same type.")
+    if isinstance(centroid, str):
+        match centroid:
+            case "mean":
+                if type_objs == "list_Evoked":
+                    obj_centroid = mne.combine_evoked(objs, weights=weights)
+                elif type_objs == "list_AverageTFR":
+                    obj_centroid = mne.time_frequency.combine_tfr(objs, weights=weights)
+            case _:
+                raise NotImplementedError(f"centroid={centroid} is not implemented.")
 
-    obj_A = obj_A.copy()
-    objs_B = [objs_B[n].copy() for n in range(len(objs_B))]
+    type_obj_centroid = get_obj_type(obj_centroid)
+    if not ((type_obj_centroid == "Evoked") or (type_obj_centroid == "AverageTFR")):
+        raise ValueError(
+            "centroid must be an instance of Evoked or AverageTFR objects."
+        )
+
+    if type_obj_centroid not in type_objs:
+        raise ValueError("centroid and objs must be of the same type.")
+
+    obj_centroid = obj_centroid.copy()
+    objs = [objs[n].copy() for n in range(len(objs))]
 
     if picks is not None:
-        obj_A = obj_A.pick(picks=picks)
-        objs_B = [objs_B[n].pick(picks=picks) for n in range(len(objs_B))]
+        obj_centroid = obj_centroid.pick(picks=picks)
+        for n in range(len(objs)):
+            objs[n] = objs[n].pick(picks=picks)
 
     def proc_tfr(tfr):
         data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax)
@@ -444,25 +457,25 @@ def between_average_spatial(
 
         return data
 
-    if type_obj_A == "AverageTFR":
+    if type_obj_centroid == "AverageTFR":
 
-        data_A = proc_tfr(obj_A)
-        data_B = [proc_tfr(objs_B[n]) for n in range(len(objs_B))]
+        data_centroid = proc_tfr(obj_centroid)
+        data_list = [proc_tfr(objs[n]) for n in range(len(objs))]
 
-    elif type_obj_A == "Evoked":
-        data_A = proc_evoked(obj_A)
-        data_B = [proc_evoked(objs_B[n]) for n in range(len(objs_B))]
+    elif type_obj_centroid == "Evoked":
+        data_centroid = proc_evoked(obj_centroid)
+        data_list = [proc_evoked(objs[n]) for n in range(len(objs))]
 
     distances = []
 
     if metric == "cosine":
-        for B in data_B:
-            d = scipy.spatial.distance.cosine(data_A, B)
+        for data in data_list:
+            d = scipy.spatial.distance.cosine(data_centroid, data)
             distances.append(d)
 
     elif metric == "angle":
-        for B in data_B:
-            d = distance_angle(data_A, B)
+        for data in data_list:
+            d = distance_angle(data_centroid, data)
             distances.append(d)
 
     else:
@@ -475,12 +488,6 @@ def between_average_spatial(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    """
-    if metric == "angle":
-        df["sgsva"] = [distances]
-    elif metric == "cosine":
-        df["sgsvc"] = [distances]
-    """
     df["between_average_spatial"] = [distances]
 
     if additional_values is not None:
