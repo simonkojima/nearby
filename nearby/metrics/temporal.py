@@ -5,9 +5,7 @@ import tslearn.metrics
 import mne
 
 from ..utils import (
-    check_obj_type,
     add_values_to_df,
-    check_averaged_obj_type,
     get_obj_type,
 )
 

@@ -8,10 +8,8 @@ from ..distances import distance_angle
 from ..mean import mean_frechet_p2, mean_extrinsic
 
 from ..utils import (
-    check_obj_type,
     add_values_to_df,
     auto_windows,
-    check_averaged_obj_type,
     get_obj_type,
 )
 
