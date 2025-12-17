@@ -118,7 +118,9 @@ def within_trial_spatial(
 
         for window in windows:
             if type_obj == "EpochsTFR":
-                data = obj.get_data(tmin=window[0], tmax=window[1])
+                data = obj.get_data(
+                    tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax
+                )
                 # data.shape: n_epochs, n_channels, n_freqs, n_times
 
                 data = data.mean(2)
@@ -342,7 +344,7 @@ def between_trial_spatial(
     return df
 
 
-def between_average_spatial(
+def between_trial_group_spatial(
         objs,
         centroid="mean",
         fmin=None,
