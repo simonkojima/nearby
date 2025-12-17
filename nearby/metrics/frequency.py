@@ -31,50 +31,106 @@ def within_trial_frequency(
         additional_values=None,
 ):
     """
-    Compute Within-Trial Frequency Variability values.
+    Compute Within-Trial Frequency (WiTrialFreq) Variability values.
+
+    This metric quantifies how much the *spectral pattern across frequencies* changes
+    within a single epoch. For each channel and epoch, the TFR is summarized into a
+    sequence of frequency vectors (one vector per time window, or per time sample).
+    A reference frequency vector (mean spectrum) is then estimated for that epoch,
+    and the dispersion of frequency vectors around that mean is computed. The function
+    returns the epoch-wise dispersion averaged across epochs (or a per-epoch list).
+
+    The spectral dispersion is computed using one of two metrics:
+
+    - ``metric="angle"``: angular distance to a Fréchet mean (p = 2) on the unit sphere.
+    - ``metric="cosine"``: cosine distance to an extrinsic mean.
 
     Parameters
     ----------
+    tfrs : mne.time_frequency.tfr.EpochsTFR
+        Epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
+        This function is implemented for TFR input only.
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    baseline : tuple of float | list of float | None, optional
+        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
+        is applied. Baseline correction is applied as::
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+            tfrs.copy().apply_baseline(baseline, mode="percent")
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). If provided, the returned spectra are
+        restricted to frequencies in ``[fmin, fmax]`` before computing variability.
+        If ``None``, MNE defaults are used.
+
+    mode : {"windows", "all_samples"}, default="windows"
+        How to represent the within-epoch time evolution of frequency patterns.
+
+        - ``"windows"``: average the TFR within time windows and treat each window as one
+          frequency vector.
+        - ``"all_samples"``: treat each time sample as one frequency vector (no temporal
+          window averaging).
+
+    windows : array_like of shape (n_windows, 2) | None, optional
+        Explicit time windows ``[[tmin_0, tmax_0], ..., [tmin_k, tmax_k]]`` in seconds
+        used when ``mode="windows"``. If ``None``, windows are generated automatically
+        with ``auto_window_size`` and ``auto_window_step`` between ``tmin`` and ``tmax``.
+
+    auto_window_size : float, default=0.1
+        Window size (in seconds) used to generate windows when ``windows=None`` and
+        ``mode="windows"``.
+
+    auto_window_step : float, default=0.1
+        Step size (in seconds) used to generate windows when ``windows=None`` and
+        ``mode="windows"``.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time range of interest (in seconds). Used to generate automatic windows when
+        ``windows=None``. In ``mode="all_samples"``, these are not currently applied in
+        the implementation (data are taken from the full epoch).
 
     metric : {"angle", "cosine"}, default="angle"
-        If "angle", the distance between the mean and each epoch is computed using
-        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+        Distance/mean definition for measuring spectral dispersion within each epoch.
 
-        If "cosine", the distance between the mean and each epoch is computed using
-        cosine distance. The mean is estimated using an extrinsic mean.
+        - ``"angle"``: angular distance between the epoch mean spectrum and each window
+          spectrum. The mean is estimated using the Fréchet mean (p = 2) after
+          normalizing spectra to unit norm.
+        - ``"cosine"``: cosine distance to an extrinsic mean spectrum.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. If ``None``, all channels in ``tfrs`` are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar per channel obtained by averaging
+        epoch-wise dispersions across epochs.
+
+        If ``False``, returns a per-channel JSON-encoded list containing one dispersion
+        value per epoch (order follows the epoch order in ``tfrs``).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values
+        Output dataframe with one row per channel.
 
+        - ``channel`` : str
+            Channel name.
+        - ``within_trial_frequency`` : float | str
+            If ``average=True``, a scalar variability value.
+            If ``average=False``, a JSON-encoded list of per-epoch variability values.
+
+    Notes
+    -----
+    Implementation outline (per channel, per epoch):
+
+    1. Build a sequence of frequency vectors over time (windows or samples).
+    2. Estimate an epoch-specific mean spectrum (Fréchet mean for ``"angle"``,
+       extrinsic mean for ``"cosine"``).
+    3. Compute distances from the mean to each frequency vector and average them to
+       obtain an epoch dispersion.
+    4. Average epoch dispersions across epochs (or return per-epoch values).
     """
     type_obj = get_obj_type(tfrs)
 
@@ -215,50 +271,80 @@ def between_trial_frequency(
         additional_values=None,
 ):
     """
-    Compute Across-Trial Frequency Variability values.
+    Compute Between-Trial Frequency (BetTrialFreq) Variability values.
+
+    This metric quantifies how much the *spectral pattern across frequencies* varies
+    across epochs. For each channel and epoch, the TFR is reduced to a single
+    frequency vector by averaging over time within the selected window
+    (``tmin``–``tmax``). A reference frequency pattern (mean spectrum across epochs)
+    is then estimated, and distances from this mean to each epoch's spectrum are
+    computed. The function returns the mean distance across epochs (or a per-epoch list)
+    for each channel.
+
+    The mean pattern and distances are computed using one of two metrics:
+
+    - ``metric="angle"``: angular distance to a Fréchet mean (p = 2) on the unit sphere.
+    - ``metric="cosine"``: cosine distance to an extrinsic mean.
 
     Parameters
     ----------
+    tfrs : mne.time_frequency.tfr.EpochsTFR
+        Epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
+        This function is implemented for TFR input only.
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    baseline : tuple of float | list of float | None, optional
+        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
+        is applied. Baseline correction is applied as::
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
-
-    fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+            tfrs.copy().apply_baseline(baseline, mode="percent")
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before averaging over time.
 
-    metrics : {"angle", "cosine"}, default="angle"
-        If "angle", the distance between the mean and each epoch is computed using
-        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+    fmin, fmax : float | None, optional
+        Frequency band of interest (in Hz). If provided, the spectra are restricted
+        to frequencies in ``[fmin, fmax]`` before computing variability.
+        If ``None``, MNE defaults are used.
 
-        If "cosine", the distance between the mean and each epoch is computed using
-        cosine distance. The mean is estimated using an extrinsic mean.
+    metric : {"angle", "cosine"}, default="angle"
+        Distance/mean definition for measuring dispersion across epochs.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+        - ``"angle"``: angular distance between the across-epoch mean spectrum and each
+          epoch spectrum. The mean is estimated using the Fréchet mean (p = 2) after
+          normalizing spectra to unit norm.
+        - ``"cosine"``: cosine distance to an extrinsic mean spectrum.
+
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. If ``None``, all channels in ``tfrs`` are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar per channel obtained by averaging
+        epoch-wise distances across epochs.
+
+        If ``False``, returns a per-channel JSON-encoded list containing one distance
+        value per epoch (order follows the epoch order in ``tfrs``).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values for each channel.
+        Output dataframe with one row per channel.
 
+        - ``channel`` : str
+            Channel name.
+        - ``between_trial_frequency`` : float | str
+            If ``average=True``, a scalar variability value.
+            If ``average=False``, a JSON-encoded list of per-epoch variability values.
+
+    Notes
+    -----
+    For each channel, the per-epoch spectrum is computed by averaging TFR values over
+    time within the selected window (``tmin``–``tmax``). Variability is then measured
+    as the dispersion of these spectra around a mean spectrum estimated across epochs.
     """
     type_obj = get_obj_type(tfrs)
 
@@ -345,52 +431,88 @@ def between_trial_group_frequency(
         additional_values=None,
 ):
     """
-    Compute Subject-to-Group Frequency Variability values.
+    Compute Between-Trial-Group Frequency (BtwTrialGrpFreq) Variability values.
+
+    This metric quantifies how much *group-level spectral patterns* differ from one
+    another. Each element of ``tfrs`` is assumed to represent a group-representative
+    spectrum (e.g., an averaged TFR such as :class:`mne.time_frequency.tfr.AverageTFR`).
+
+    For each channel, the function builds (or accepts) a centroid spectrum and then
+    measures the dissimilarity between the centroid and each group spectrum across
+    frequencies. The final channel-level score is the mean distance across groups
+    (or a per-group list).
 
     Parameters
     ----------
+    tfrs : list of mne.time_frequency.tfr.AverageTFR
+        List of group-representative TFR objects. All entries must be
+        :class:`mne.time_frequency.tfr.AverageTFR`.
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    centroid : {"mean"} | mne.time_frequency.tfr.AverageTFR, default="mean"
+        Definition of the centroid (reference) spectrum used for comparisons.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
-
-    fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        - ``"mean"``: the centroid is computed as the weighted average of ``tfrs`` via
+          :func:`mne.time_frequency.combine_tfr`.
+        - If an :class:`mne.time_frequency.tfr.AverageTFR` is provided, it is used
+          directly as the centroid.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before averaging over time.
 
-    metrics : {"angle", "cosine"}, default="angle"
-        If "angle", the distance between the mean and each epoch is computed using
-        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+    fmin, fmax : float | None, optional
+        Frequency band of interest (in Hz). If provided, spectra are restricted to
+        frequencies in ``[fmin, fmax]`` before computing distances.
+        If ``None``, MNE defaults are used.
 
-        If "cosine", the distance between the mean and each epoch is computed using
-        cosine distance. The mean is estimated using an extrinsic mean.
+    metric : {"angle", "cosine"}, default="angle"
+        Distance definition for comparing spectra across groups.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+        - ``"angle"``: angular distance between centroid and group spectra via
+          ``distance_angle``.
+        - ``"cosine"``: cosine distance between centroid and group spectra.
+
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Applied to both the centroid and all objects in ``tfrs``.
+        If ``None``, all channels are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar per channel obtained by averaging
+        distances across groups.
+
+        If ``False``, returns a per-channel JSON-encoded list containing one distance
+        per group (order follows ``tfrs``).
+
+    weights : str | array_like of float, default="nave"
+        Weights used when ``centroid="mean"``. Passed to
+        :func:`mne.time_frequency.combine_tfr`. The default ``"nave"`` uses the number
+        of averaged epochs (when available).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``, ``group_id``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values for each channel.
+        Output dataframe with one row per channel.
+
+        - ``channel`` : str
+            Channel name.
+        - ``between_average_frequency`` : float | str
+            If ``average=True``, a scalar variability value (mean distance).
+            If ``average=False``, a JSON-encoded list of per-group distance values.
+
+    Notes
+    -----
+    For each group TFR, the per-channel spectrum is computed by averaging TFR values
+    over time within ``[tmin, tmax]``. Distances are then computed between each group
+    spectrum and the centroid spectrum.
+
+    This function measures variability *between group-level averages* rather than
+    between single-trial epochs.
 
     """
-    # type_obj = check_averaged_obj_type(tfrs_A)
 
     if isinstance(centroid, str):
         match centroid:

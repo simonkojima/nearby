@@ -26,17 +26,17 @@ Between-Trial Variability
    nearby.metrics.between_trial_spatial
    nearby.metrics.between_trial_frequency
 
-Between-Average Variability
+Between-Trial-Group Variability
 ------------------------
 
 .. autosummary::
    :toctree:
-   :caption: Between-Average Variability
+   :caption: Between-Trial-Group Variability
    :recursive:
    
-   nearby.metrics.between_average_temporal
-   nearby.metrics.between_average_spatial
-   nearby.metrics.between_average_frequency
+   nearby.metrics.between_trial_group_temporal
+   nearby.metrics.between_trial_group_spatial
+   nearby.metrics.between_trial_group_frequency
 
 Miscellaneous Metrics
 ------------------------
@@ -70,18 +70,3 @@ Mean
    
    nearby.mean.mean_extrinsic
    nearby.mean.mean_frechet_p2
-
-[OLD] nearby.metrics
---------------
-.. autosummary::
-   :toctree:
-   :caption: [OLD] nearby.metrics
-   :recursive:
-   
-   nearby.metrics.me
-   nearby.metrics.smeat
-   nearby.metrics.attv
-   nearby.metrics.wttv
-   nearby.metrics.atsv
-   nearby.metrics.atfv
-

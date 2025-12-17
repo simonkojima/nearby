@@ -22,43 +22,79 @@ def within_trial_temporal(
         average=True,
 ):
     """
-    Compute Within-Trial Temporal (WTTemp) Variability values.
+    Compute Within-Trial Temporal (WiTrialTemp) Variability values.
+
+    This metric quantifies how much the time course varies within each epoch.
+    For each channel, it computes the standard deviation over time within an epoch,
+    then optionally averages those values across epochs.
+
+    - If ``obj`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
+      first restricted to the specified frequency band (``fmin``–``fmax``) and then
+      averaged over frequency, yielding a single time course per epoch.
+    - If ``obj`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
+      directly (in microvolts).
 
     Parameters
     ----------
+    obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
+        The MNE object containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
+        or epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.EpochsTFR``
-        The MNE object containing either epochs or time–frequency data.
+    baseline : tuple of float | list of float | None, optional
+        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
+        is applied.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+        For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline, mode="percent")
+
+        For :class:`mne.epochs.Epochs`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline)
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). Only used when ``obj`` is an
+        :class:`mne.time_frequency.tfr.EpochsTFR`. If ``None``, MNE defaults are used.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before computing variability.
 
-    picks : str | array_like | None, optional
-        Channels to include.
-
-    average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Passed to :meth:`mne.Epochs.pick` / :meth:`mne.time_frequency.EpochsTFR.pick`.
+        If ``None``, all channels are used.
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``).
+
+    average : bool, default=True
+        If ``True``, returns a single scalar per channel obtained by averaging the
+        per-epoch within-trial temporal standard deviations across epochs.
+
+        If ``False``, returns a per-channel JSON-encoded list containing one value
+        per epoch (order follows the epoch order in ``obj``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values for each channel.
+        Output dataframe with one row per channel.
 
+        - ``channel`` : str
+            Channel name.
+        - ``within_trial_temporal`` : float | str
+            If ``average=True``, a scalar variability value.
+            If ``average=False``, a JSON-encoded list of per-epoch variability values.
+
+    Notes
+    -----
+    For each channel and epoch, this function computes the standard deviation over
+    the time axis within the selected time window. For time–frequency input, the
+    time course is first reduced by averaging over the frequency axis within
+    ``[fmin, fmax]``.
+
+    This function is implemented only for :class:`mne.epochs.Epochs` and
+    :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
     type_obj = get_obj_type(obj)
 
@@ -125,43 +161,80 @@ def between_trial_temporal(
         additional_values=None,
 ):
     """
-    Compute Between-Trial Temporal (BTTemp) Variability values.
+    Compute Between-Trial Temporal (BtwTrialTemp) Variability values.
+
+    This metric quantifies how much the time course varies across epochs.
+    For each channel, it first computes a representative (mean) time course across
+    epochs, then measures the dissimilarity (distance) between each epoch's time course and
+    this mean time course using Dynamic Time Warping (DTW). The final channel-level
+    score is the average DTW distance across epochs.
+
+    - If ``obj`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
+      first restricted to the specified frequency band (``fmin``–``fmax``) and then
+      averaged over frequency, yielding a single time course per epoch.
+    - If ``obj`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
+      directly (in microvolts).
 
     Parameters
     ----------
+    obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
+        The MNE object containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
+        or epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    baseline : tuple of float | list of float | None, optional
+        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
+        is applied.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+        For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline, mode="percent")
+
+        For :class:`mne.epochs.Epochs`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline)
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). Only used when ``obj`` is an
+        :class:`mne.time_frequency.tfr.EpochsTFR`. If ``None``, MNE defaults are used.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before computing variability.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Passed to :meth:`mne.Epochs.pick` / :meth:`mne.time_frequency.EpochsTFR.pick`.
+        If ``None``, all channels are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar per channel obtained by averaging
+        DTW distances across epochs.
+
+        If ``False``, returns a per-channel JSON-encoded list containing one DTW
+        distance per epoch (in the same epoch order as ``obj``).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values for each channel.
+        Output dataframe with one row per channel.
 
+        - ``channel`` : str
+            Channel name.
+        - ``between_trial_temporal`` : float | str
+            If ``average=True``, a scalar variability value (mean DTW distance).
+            If ``average=False``, a JSON-encoded list of per-epoch DTW distances.
+
+    Notes
+    -----
+    The representative time course is computed as a simple point-wise mean over epochs.
+    DTW is then used to compare each epoch's time course to this mean while allowing
+    non-linear temporal alignment.
+
+    This function is implemented only for :class:`mne.epochs.Epochs` and
+    :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
 
     type_obj = get_obj_type(obj)
@@ -237,43 +310,87 @@ def between_trial_group_temporal(
         average=True,
 ):
     """
-    Compute Between-Average Temporal (BATemp) values.
+    Compute Between-Trial-Group Temporal (BtwTrialGrpTemp) values.
+
+    This metric quantifies how much the group-level time courses differ from
+    each other. Each element of ``objs`` is assumed to represent a *trial-group
+    representative* time course (e.g., an averaged waveform such as an
+    :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`).
+
+    For each channel, the function builds (or accepts) a centroid time course and
+    computes the Dynamic Time Warping (DTW) distance between the centroid and each
+    group representative. The final channel-level score is the mean DTW distance
+    across groups (or a per-group list).
+
+    - If the inputs are :class:`mne.time_frequency.tfr.AverageTFR`, power values are
+      restricted to ``fmin``–``fmax`` and averaged over frequency to obtain a
+      single time course per group.
+    - If the inputs are :class:`mne.Evoked`, the evoked waveform is used directly
+      (in microvolts).
 
     Parameters
     ----------
+    objs : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
+        List of group-representative objects. All entries must be the same type:
+        either :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`.
 
-    obj : ``mne.evoked.Evoked`` | ``mne.time_frequency.tfr.AverageTFR``
-        The MNE object containing either epochs or time–frequency data.
+    centroid : {"mean"} | mne.Evoked | mne.time_frequency.tfr.AverageTFR, default="mean"
+        Definition of the centroid (reference) waveform used for DTW comparisons.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+        - ``"mean"``: the centroid is computed as the weighted average of ``objs``
+          using :func:`mne.combine_evoked` (for :class:`mne.Evoked`) or
+          :func:`mne.time_frequency.combine_tfr` (for :class:`mne.time_frequency.tfr.AverageTFR`).
+        - If an object is provided, it is used directly as the centroid.
+
+        The centroid must be of the same type as the elements of ``objs``.
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). Only used when inputs are
+        :class:`mne.time_frequency.tfr.AverageTFR`. If ``None``, MNE defaults are used.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before computing DTW distances.
 
-    picks : str | array_like | None, optional
-        Channels to include.
-
-    average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Applied to both the centroid and all objects in ``objs``.
+        If ``None``, all channels are used.
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``, ``group_id``).
+
+    weights : str | array_like of float, default="nave"
+        Weights used when ``centroid="mean"``.
+        Passed to :func:`mne.combine_evoked` or :func:`mne.time_frequency.combine_tfr`.
+        The default ``"nave"`` uses the number of averaged epochs (when available).
+
+    average : bool, default=True
+        If ``True``, returns a single scalar per channel obtained by averaging DTW
+        distances across groups.
+
+        If ``False``, returns a per-channel JSON-encoded list containing one DTW
+        distance per group (order follows ``objs``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values for each channel.
+        Output dataframe with one row per channel.
 
+        - ``channel`` : str
+            Channel name.
+        - ``between_average_temporal`` : float | str
+            If ``average=True``, a scalar variability value (mean DTW distance).
+            If ``average=False``, a JSON-encoded list of per-group DTW distances.
+
+    Notes
+    -----
+    This function measures variability *between group-level averages* rather than
+    between single-trial epochs. DTW is used to compare time courses while allowing
+    non-linear temporal alignment.
+
+    This function is implemented only for lists of :class:`mne.Evoked` or lists of
+    :class:`mne.time_frequency.tfr.AverageTFR`.
     """
 
     type_objs = get_obj_type(objs)

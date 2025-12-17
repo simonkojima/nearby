@@ -31,50 +31,113 @@ def within_trial_spatial(
         additional_values=None,
 ):
     """
-    Compute Within-Trial Spatial Variability values.
+    Compute Within-Trial Spatial (WiTrialSpat) Variability values.
+
+    This metric quantifies how much the *spatial pattern across channels* changes
+    within a single epoch. For each epoch, the signal is summarized into a sequence
+    of spatial vectors (one vector per time window, or per sample). A reference
+    spatial vector (mean pattern) is then estimated for that epoch, and the
+    dispersion of spatial vectors around that mean is computed. The function returns
+    the epoch-wise dispersion averaged across epochs (or a per-epoch list).
+
+    The spatial dispersion is computed using one of two metrics:
+
+    - ``metric="angle"``: angular distance to a Fréchet mean (p = 2) on the unit sphere.
+    - ``metric="cosine"``: cosine distance to an extrinsic mean.
 
     Parameters
     ----------
+    obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
+        Epoched time-domain data (:class:`mne.epochs.Epochs`) or epoched time–frequency
+        data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    baseline : tuple of float | list of float | None, optional
+        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
+        is applied.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+        For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline, mode="percent")
+
+        For :class:`mne.epochs.Epochs`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline)
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). Only used when ``obj`` is an
+        :class:`mne.time_frequency.tfr.EpochsTFR`. If provided, the data are reduced by
+        averaging over frequencies in ``[fmin, fmax]`` before computing spatial patterns.
+
+    mode : {"windows", "all_samples"}, default="windows"
+        How to represent the within-epoch time evolution of spatial patterns.
+
+        - ``"windows"``: average the data within time windows and treat each window as one
+          spatial vector.
+        - ``"all_samples"``: treat each time sample as one spatial vector (no temporal
+          window averaging). For TFR input, frequency is still averaged first.
+
+    windows : array_like of shape (n_windows, 2) | None, optional
+        Explicit time windows ``[[tmin_0, tmax_0], ..., [tmin_k, tmax_k]]`` in seconds
+        used when ``mode="windows"``. If ``None``, windows are generated automatically
+        with ``auto_window_size`` and ``auto_window_step`` between ``tmin`` and ``tmax``.
+
+    auto_window_size : float, default=0.1
+        Window size (in seconds) used to generate windows when ``windows=None`` and
+        ``mode="windows"``.
+
+    auto_window_step : float, default=0.1
+        Step size (in seconds) used to generate windows when ``windows=None`` and
+        ``mode="windows"``.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time range of interest (in seconds). Used to generate automatic windows when
+        ``windows=None``. In ``mode="all_samples"``, these are not currently applied in
+        the implementation (data are taken from the full epoch).
 
     metric : {"angle", "cosine"}, default="angle"
-        If "angle", the distance between the mean and each epoch is computed using
-        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+        Distance/mean definition for measuring spatial dispersion within each epoch.
 
-        If "cosine", the distance between the mean and each epoch is computed using
-        cosine distance. The mean is estimated using an extrinsic mean.
+        - ``"angle"``: angular distance between the epoch mean pattern and each window
+          pattern. The mean is estimated using the Fréchet mean (p = 2) after
+          normalizing patterns to unit norm.
+        - ``"cosine"``: cosine distance to an extrinsic mean pattern.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. If ``None``, all channels in ``obj`` are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar obtained by averaging epoch-wise dispersions
+        across epochs.
+
+        If ``False``, returns a JSON-encoded list containing one dispersion value per
+        epoch (order follows the epoch order in ``obj``).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values
+        Output dataframe with a single row.
 
+        - ``within_trial_spatial`` : float | str
+            If ``average=True``, a scalar variability value.
+            If ``average=False``, a JSON-encoded list of per-epoch variability values.
+
+    Notes
+    -----
+    Implementation outline (per epoch):
+
+    1. Build a sequence of spatial vectors over time (windows or samples).
+    2. Estimate an epoch-specific mean spatial pattern (Fréchet mean for ``"angle"``,
+       extrinsic mean for ``"cosine"``).
+    3. Compute distances from the mean to each spatial vector and average them to obtain
+       an epoch dispersion.
+    4. Average epoch dispersions across epochs (or return per-epoch values).
+
+    This function is implemented only for :class:`mne.epochs.Epochs` and
+    :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
     type_obj = get_obj_type(obj)
 
@@ -195,13 +258,6 @@ def within_trial_spatial(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    """
-    if metric == "angle":
-        df["wtsva"] = [distances]
-    elif metric == "cosine":
-        df["wtsvc"] = [distances]
-    """
-
     df["within_trial_spatial"] = [distances]
 
     if additional_values is not None:
@@ -223,50 +279,86 @@ def between_trial_spatial(
         additional_values=None,
 ):
     """
-    Compute Across-Trial Spatial Variability values.
+    Compute Between-Trial Spatial (BtwTrialSpat) Variability values.
+
+    This metric quantifies how much the *spatial pattern across channels* varies
+    across epochs. For each epoch, the data are reduced to a single spatial vector
+    (one value per channel) by averaging over time (and over frequency for TFR input).
+    A reference spatial pattern (mean across epochs) is then estimated, and distances
+    from this mean to each epoch's spatial vector are computed. The function returns
+    the mean distance across epochs (or a per-epoch list).
+
+    The mean pattern and distances are computed using one of two metrics:
+
+    - ``metric="angle"``: angular distance to a Fréchet mean (p = 2) on the unit sphere.
+    - ``metric="cosine"``: cosine distance to an extrinsic mean.
 
     Parameters
     ----------
+    obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
+        Epoched time-domain data (:class:`mne.epochs.Epochs`) or epoched time–frequency
+        data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    baseline : tuple of float | list of float | None, optional
+        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
+        is applied.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+        For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline, mode="percent")
+
+        For :class:`mne.epochs.Epochs`, baseline correction is applied as::
+
+            obj.copy().apply_baseline(baseline)
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). Only used when ``obj`` is an
+        :class:`mne.time_frequency.tfr.EpochsTFR`. If ``None``, MNE defaults are used.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before averaging.
 
-    metrics : {"angle", "cosine"}, default="angle"
-        If "angle", the distance between the mean and each epoch is computed using
-        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+    metric : {"angle", "cosine"}, default="angle"
+        Distance/mean definition for measuring dispersion across epochs.
 
-        If "cosine", the distance between the mean and each epoch is computed using
-        cosine distance. The mean is estimated using an extrinsic mean.
+        - ``"angle"``: angular distance between the across-epoch mean pattern and each
+          epoch pattern. The mean is estimated using the Fréchet mean (p = 2) after
+          normalizing patterns to unit norm.
+        - ``"cosine"``: cosine distance to an extrinsic mean pattern.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. If ``None``, all channels in ``obj`` are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar obtained by averaging epoch-wise distances
+        across epochs.
+
+        If ``False``, returns a JSON-encoded list containing one distance value per
+        epoch (order follows the epoch order in ``obj``).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values
+        Output dataframe with a single row.
 
+        - ``between_trial_spatial`` : float | str
+            If ``average=True``, a scalar variability value.
+            If ``average=False``, a JSON-encoded list of per-epoch variability values.
+
+    Notes
+    -----
+    For :class:`mne.time_frequency.tfr.EpochsTFR`, the spatial vector for each epoch is
+    computed by averaging over the frequency axis and then averaging over time within
+    the selected window. For :class:`mne.epochs.Epochs`, the spatial vector is computed
+    by averaging over time only.
+
+    This function is implemented only for :class:`mne.epochs.Epochs` and
+    :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
     type_obj = get_obj_type(obj)
 
@@ -356,50 +448,88 @@ def between_trial_group_spatial(
         additional_values=None,
 ):
     """
-    Compute Subject-to-Group Spatial Variability values.
+    Compute Between-Trial-Group Spatial (BtwTrialGrpSpat) Variability values.
+
+    This metric quantifies how much *group-level spatial patterns* differ from one
+    another. Each element of ``objs`` is assumed to represent a *trial-group
+    representative* spatial pattern (e.g., an averaged ERD/S pattern such as an
+    :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`).
+
+    For each group, the data are reduced to a single spatial vector (one value per
+    channel) by averaging over time (and over frequency for TFR input). A centroid
+    pattern is then built (or provided), and distances between the centroid and each
+    group pattern are computed. The function returns the mean distance across groups
+    (or a per-group list).
 
     Parameters
     ----------
+    objs : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
+        List of group-representative objects. All entries must be the same type:
+        either :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`.
 
-    obj : ``mne.epochs.Epochs`` | ``mne.time_frequency.tfr.BaseTFR``
-        The MNE object containing either epochs or time–frequency data.
+    centroid : {"mean"} | mne.Evoked | mne.time_frequency.tfr.AverageTFR, default="mean"
+        Definition of the centroid (reference) pattern used for comparisons.
 
-    baseline : tuple | list | None, optional
-        Time interval used for baseline correction. If `None`, no baseline is applied.
-        If `obj` is an MNE TFR object, the baseline is applied using `obj.copy().apply_baseline(baseline, mode="percent")`.
-        If `obj` is an MNE Epochs object, it is applied using `obj.copy().apply_baseline(baseline)`.
+        - ``"mean"``: the centroid is computed as the weighted average of ``objs``
+          using :func:`mne.combine_evoked` (for :class:`mne.Evoked`) or
+          :func:`mne.time_frequency.combine_tfr` (for :class:`mne.time_frequency.tfr.AverageTFR`).
+        - If an object is provided, it is used directly as the centroid.
+
+        The centroid must be of the same type as the elements of ``objs``.
 
     fmin, fmax : float | None, optional
-        Frequency range of interest. Only used when `obj` is a TFR object.
+        Frequency band of interest (in Hz). Only used when inputs are
+        :class:`mne.time_frequency.tfr.AverageTFR`. If ``None``, MNE defaults are used.
 
     tmin, tmax : float | None, optional
-        Time range of interest, in seconds.
+        Time window of interest (in seconds). If provided, data are cropped to
+        ``[tmin, tmax]`` before averaging.
 
-    metrics : {"angle", "cosine"}, default="angle"
-        If "angle", the distance between the mean and each epoch is computed using
-        angular distance. The mean is estimated using the Fréchet mean (p = 2).
+    metric : {"angle", "cosine"}, default="angle"
+        Distance definition for measuring dispersion across groups.
 
-        If "cosine", the distance between the mean and each epoch is computed using
-        cosine distance. The mean is estimated using an extrinsic mean.
+        - ``"angle"``: angular distance between spatial patterns. In this implementation,
+          the centroid and group patterns are compared directly with ``distance_angle``.
+        - ``"cosine"``: cosine distance between centroid and group patterns.
 
-    picks : str | array_like | None, optional
-        Channels to include.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Applied to both the centroid and all objects in ``objs``.
+        If ``None``, all channels are used.
 
     average : bool, default=True
-        If `True`, values are averaged across epochs. If `False`, a value
-        is returned for each epoch.
-        If ``average=False``, the DataFrame contains one entry per channel,
-        where each entry consists of a JSON-encoded list representing the
-        per-epoch ERD/S values.
+        If ``True``, returns a single scalar obtained by averaging distances across
+        groups.
+
+        If ``False``, returns a JSON-encoded list containing one distance value per
+        group (order follows ``objs``).
+
+    weights : str | array_like of float, default="nave"
+        Weights used when ``centroid="mean"``.
+        Passed to :func:`mne.combine_evoked` or :func:`mne.time_frequency.combine_tfr`.
+        The default ``"nave"`` uses the number of averaged epochs (when available).
 
     additional_values : dict | None, optional
-        Additional columns to append to the output dataframe.
+        Additional columns to append to the returned dataframe. This is useful for
+        adding metadata (e.g., ``subject``, ``session``, ``run``, ``group_id``).
 
     Returns
     -------
     df : pandas.DataFrame
-        DataFrame containing variability values
+        Output dataframe with a single row.
 
+        - ``between_average_spatial`` : float | str
+            If ``average=True``, a scalar variability value.
+            If ``average=False``, a JSON-encoded list of per-group variability values.
+
+    Notes
+    -----
+    For :class:`mne.time_frequency.tfr.AverageTFR`, the spatial vector is computed by
+    averaging over the frequency axis and then averaging over time within the selected
+    window. For :class:`mne.Evoked`, the spatial vector is computed by averaging over
+    time only.
+
+    This function measures variability *between group-level averages* rather than
+    between single-trial epochs.
     """
 
     type_objs = get_obj_type(objs)
