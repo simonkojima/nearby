@@ -517,7 +517,7 @@ def between_trial_group_spatial(
     df : pandas.DataFrame
         Output dataframe with a single row.
 
-        - ``between_average_spatial`` : float | str
+        - ``between_trial_group_spatial`` : float | str
             If ``average=True``, a scalar variability value.
             If ``average=False``, a JSON-encoded list of per-group variability values.
 
@@ -620,7 +620,7 @@ def between_trial_group_spatial(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    df["between_average_spatial"] = [distances]
+    df["between_trial_group_spatial"] = [distances]
 
     if additional_values is not None:
         df = add_values_to_df(df, additional_values)

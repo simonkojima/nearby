@@ -499,7 +499,7 @@ def between_trial_group_frequency(
 
         - ``channel`` : str
             Channel name.
-        - ``between_average_frequency`` : float | str
+        - ``between_trial_group_frequency`` : float | str
             If ``average=True``, a scalar variability value (mean distance).
             If ``average=False``, a JSON-encoded list of per-group distance values.
 
@@ -543,7 +543,7 @@ def between_trial_group_frequency(
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
-    df_dict = {"channel": [], "between_average_frequency": []}
+    df_dict = {"channel": [], "between_trial_group_frequency": []}
 
     def proc(tfrs, ch):
         data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
@@ -583,7 +583,7 @@ def between_trial_group_frequency(
             distances = json.dumps(distances)
 
         df_dict["channel"].append(ch)
-        df_dict["between_average_frequency"].append(distances)
+        df_dict["between_trial_group_frequency"].append(distances)
 
     df = pd.DataFrame(df_dict)
 

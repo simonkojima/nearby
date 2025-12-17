@@ -379,7 +379,7 @@ def between_trial_group_temporal(
 
         - ``channel`` : str
             Channel name.
-        - ``between_average_temporal`` : float | str
+        - ``between_trial_group_temporal`` : float | str
             If ``average=True``, a scalar variability value (mean DTW distance).
             If ``average=False``, a JSON-encoded list of per-group DTW distances.
 
@@ -450,7 +450,7 @@ def between_trial_group_temporal(
 
         return data
 
-    df_dict = {"channel": [], "between_average_temporal": []}
+    df_dict = {"channel": [], "between_trial_group_temporal": []}
     for ch in obj_centroid.ch_names:
         if type_obj_centroid == "AverageTFR":
 
@@ -474,7 +474,7 @@ def between_trial_group_temporal(
             scores = json.dumps(scores)
 
         df_dict["channel"].append(ch)
-        df_dict["between_average_temporal"].append(scores)
+        df_dict["between_trial_group_temporal"].append(scores)
 
     df = pd.DataFrame(df_dict)
 
