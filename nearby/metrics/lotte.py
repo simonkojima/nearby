@@ -8,6 +8,7 @@ from ..utils import add_values_to_df
 def class_stability(
     epochs=None,
     covs=None,
+    centroid="mean",
     additional_values=None,
     estimator="scm",
     tmin=None,
@@ -89,7 +90,14 @@ def class_stability(
     if covs.shape[1] != covs.shape[2]:
         raise ValueError("covs must be a square matrix")
 
-    M = pyriemann.utils.mean.mean_covariance(covs, metric="riemann")
+    if isinstance(centroid, str):
+        match centroid:
+            case "mean":
+                M = pyriemann.utils.mean.mean_covariance(covs, metric="riemann")
+            case _:
+                raise NotImplementedError(f"centroid={centroid} is not implemented.")
+    else:
+        M = centroid
 
     dispersion = []
     for m in range(covs.shape[0]):

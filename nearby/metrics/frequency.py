@@ -333,7 +333,7 @@ def between_trial_frequency(
     return df
 
 
-def between_average_frequency(
+def between_trial_group_frequency(
         tfrs,
         centroid="mean",
         tmin=None,

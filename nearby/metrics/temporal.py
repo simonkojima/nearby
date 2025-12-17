@@ -226,7 +226,7 @@ def between_trial_temporal(
     return df
 
 
-def between_average_temporal(
+def between_trial_group_temporal(
         objs,
         centroid="mean",
         fmin=None,
