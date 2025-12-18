@@ -2,7 +2,7 @@ import numpy as np
 import pyriemann
 import pandas as pd
 
-from ..utils import add_values_to_df
+from ..utils.core import _add_values_to_df
 
 
 def class_stability(

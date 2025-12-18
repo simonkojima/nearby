@@ -7,10 +7,10 @@ import mne
 from ..distances import distance_angle
 from ..mean import mean_extrinsic, mean_frechet_p2
 
-from ..utils import (
-    add_values_to_df,
-    auto_windows,
-    get_obj_type,
+from ..utils.core import (
+    _add_values_to_df,
+    _auto_windows,
+    _get_obj_type,
 )
 
 
@@ -139,7 +139,7 @@ def within_trial_spatial(
     This function is implemented only for :class:`mne.epochs.Epochs` and
     :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
-    type_obj = get_obj_type(obj)
+    type_obj = _get_obj_type(obj)
 
     if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
         raise ValueError("obj must be an instance of EpochsTFR or Epochs objects.")
@@ -167,7 +167,7 @@ def within_trial_spatial(
     data_list = []
     if mode == "windows":
         if windows is None:
-            windows = auto_windows(
+            windows = _auto_windows(
                 size=auto_window_size,
                 step=auto_window_step,
                 tmin=tmin,
@@ -261,7 +261,7 @@ def within_trial_spatial(
     df["within_trial_spatial"] = [distances]
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 
@@ -360,7 +360,7 @@ def between_trial_spatial(
     This function is implemented only for :class:`mne.epochs.Epochs` and
     :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
-    type_obj = get_obj_type(obj)
+    type_obj = _get_obj_type(obj)
 
     if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
         raise ValueError("obj must be an instance of EpochsTFR or Epochs objects.")
@@ -420,16 +420,10 @@ def between_trial_spatial(
         distances = json.dumps(distances)
 
     df = pd.DataFrame()
-    """
-    if metric == "angle":
-        df["atsva"] = [distances]
-    elif metric == "cosine":
-        df["atsvc"] = [distances]
-    """
     df["between_trial_spatial"] = [distances]
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 
@@ -532,7 +526,7 @@ def between_trial_group_spatial(
     between single-trial epochs.
     """
 
-    type_objs = get_obj_type(objs)
+    type_objs = _get_obj_type(objs)
 
     if not ((type_objs == "list_Evoked") or (type_objs == "list_AverageTFR")):
         raise ValueError(
@@ -551,7 +545,7 @@ def between_trial_group_spatial(
     else:
         obj_centroid = centroid
 
-    type_obj_centroid = get_obj_type(obj_centroid)
+    type_obj_centroid = _get_obj_type(obj_centroid)
     if not ((type_obj_centroid == "Evoked") or (type_obj_centroid == "AverageTFR")):
         raise ValueError(
             "centroid must be an instance of Evoked or AverageTFR objects."
@@ -623,6 +617,6 @@ def between_trial_group_spatial(
     df["between_trial_group_spatial"] = [distances]
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df

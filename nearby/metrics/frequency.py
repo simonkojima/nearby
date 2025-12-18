@@ -7,10 +7,10 @@ import mne
 from ..distances import distance_angle
 from ..mean import mean_frechet_p2, mean_extrinsic
 
-from ..utils import (
-    add_values_to_df,
-    auto_windows,
-    get_obj_type,
+from ..utils.core import (
+    _add_values_to_df,
+    _auto_windows,
+    _get_obj_type,
 )
 
 
@@ -132,7 +132,7 @@ def within_trial_frequency(
        obtain an epoch dispersion.
     4. Average epoch dispersions across epochs (or return per-epoch values).
     """
-    type_obj = get_obj_type(tfrs)
+    type_obj = _get_obj_type(tfrs)
 
     if not (type_obj == "EpochsTFR"):
         raise ValueError("obj must be an instance of EpochsTFR objects.")
@@ -161,7 +161,7 @@ def within_trial_frequency(
     data_dict = {}
     if mode == "windows":
         if windows is None:
-            windows = auto_windows(
+            windows = _auto_windows(
                 size=auto_window_size,
                 step=auto_window_step,
                 tmin=tmin,
@@ -242,18 +242,12 @@ def within_trial_frequency(
             dispersion = json.dumps(dispersion)
 
         df_dict["channel"].append(ch)
-        """
-        if metric == "angle":
-            df_dict["wtfva"].append(dispersion)
-        elif metric == "cosine":
-            df_dict["wtfvc"].append(dispersion)
-        """
         df_dict["within_trial_frequency"].append(dispersion)
 
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 
@@ -346,7 +340,7 @@ def between_trial_frequency(
     time within the selected window (``tmin``–``tmax``). Variability is then measured
     as the dispersion of these spectra around a mean spectrum estimated across epochs.
     """
-    type_obj = get_obj_type(tfrs)
+    type_obj = _get_obj_type(tfrs)
 
     if not (type_obj == "EpochsTFR"):
         raise ValueError("obj must be an instance of EpochsTFR objects.")
@@ -401,18 +395,12 @@ def between_trial_frequency(
             distances = json.dumps(distances)
 
         df_dict["channel"].append(ch)
-        """
-        if metric == "angle":
-            df_dict["atfva"].append(distances)
-        elif metric == "cosine":
-            df_dict["atfvc"].append(distances)
-        """
         df_dict["between_trial_frequency"].append(distances)
 
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 
@@ -523,8 +511,8 @@ def between_trial_group_frequency(
     else:
         tfr_centroid = centroid
 
-    type_tfr_centroid = get_obj_type(tfr_centroid)
-    type_tfrs = get_obj_type(tfrs)
+    type_tfr_centroid = _get_obj_type(tfr_centroid)
+    type_tfrs = _get_obj_type(tfrs)
 
     if not (type_tfr_centroid == "AverageTFR"):
         raise ValueError("centroid must be an instance of AverageTFR objects.")
@@ -588,6 +576,6 @@ def between_trial_group_frequency(
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df

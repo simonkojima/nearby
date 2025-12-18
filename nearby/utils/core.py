@@ -2,7 +2,7 @@ import numpy as np
 import mne
 
 
-def auto_windows(size, step, tmin, tmax):
+def _auto_windows(size, step, tmin, tmax):
     start = np.arange(tmin, tmax, step)
     end = start + size
 
@@ -14,13 +14,13 @@ def auto_windows(size, step, tmin, tmax):
     return windows
 
 
-def add_values_to_df(df, values):
+def _add_values_to_df(df, values):
     for key, value in values.items():
         df[key] = [value for _ in range(len(df))]
     return df
 
 
-def get_obj_type(obj):
+def _get_obj_type(obj):
     if isinstance(obj, mne.time_frequency.tfr.EpochsTFR):
         type_obj = "EpochsTFR"
     elif isinstance(obj, mne.epochs.BaseEpochs):
@@ -32,7 +32,7 @@ def get_obj_type(obj):
     elif isinstance(obj, list):
         type_obj = []
         for o in obj:
-            type_obj.append(get_obj_type(o))
+            type_obj.append(_get_obj_type(o))
         type_obj = list(set(type_obj))
 
         if len(type_obj) > 1:
@@ -50,7 +50,7 @@ def get_obj_type(obj):
     return type_obj
 
 
-def check_obj_type(obj):
+def _check_obj_type(obj):  # Unused maybe?
     if isinstance(obj, mne.time_frequency.tfr.EpochsTFR):
         type_obj = "tfr"
     elif isinstance(obj, mne.epochs.BaseEpochs):
@@ -62,7 +62,7 @@ def check_obj_type(obj):
     return type_obj
 
 
-def check_averaged_obj_type(obj):
+def _check_averaged_obj_type(obj):  # Unused maybe?
     if isinstance(obj, mne.time_frequency.tfr.AverageTFR):
         type_obj = "tfr"
     elif isinstance(obj, mne.evoked.Evoked):

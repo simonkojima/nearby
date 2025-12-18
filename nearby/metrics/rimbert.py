@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ..utils import check_obj_type, add_values_to_df
+from ..utils.core import _get_obj_type, _add_values_to_df
 
 
 def mean_erds(
