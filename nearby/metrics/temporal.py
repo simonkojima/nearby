@@ -103,14 +103,16 @@ def within_trial_temporal(
             "within_trial_temporal is only implemented for EpochsTFR or Epochs objects."
         )
 
+    obj = obj.copy()
+
     if baseline is not None:
         if type_obj == "EpochsTFR":
-            obj = obj.copy().apply_baseline(baseline, "percent")
+            obj = obj.apply_baseline(baseline, "percent")
         elif type_obj == "Epochs":
-            obj = obj.copy().apply_baseline(baseline)
+            obj = obj.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.copy().pick(picks=picks)
+        obj = obj.pick(picks=picks)
 
     df_dict = {"channel": [], "within_trial_temporal": []}
     for ch in obj.ch_names:
@@ -144,7 +146,7 @@ def within_trial_temporal(
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 
@@ -244,14 +246,16 @@ def between_trial_temporal(
             "within_trial_temporal is only implemented for EpochsTFR or Epochs objects."
         )
 
+    obj = obj.copy()
+
     if baseline is not None:
         if type_obj == "tfr":
-            obj = obj.copy().apply_baseline(baseline, "percent")
+            obj = obj.apply_baseline(baseline, "percent")
         elif type_obj == "epochs":
-            obj = obj.copy().apply_baseline(baseline)
+            obj = obj.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.copy().pick(picks=picks)
+        obj = obj.pick(picks=picks)
 
     df_dict = {"channel": [], "between_trial_temporal": []}
     for ch in obj.ch_names:
@@ -292,7 +296,7 @@ def between_trial_temporal(
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 

@@ -155,15 +155,6 @@ def within_trial_spatial(
     if picks is not None:
         obj = obj.pick(picks=picks)
 
-    """
-    if (tmin is not None) or (tmax is not None):
-        obj = obj.crop(tmin=tmin, tmax=tmax)
-
-    if type_obj == "EpochsTFR":
-        if (fmin is not None) or (fmax is not None):
-            obj = obj.crop(fmin=fmin, fmax=fmax)
-    """
-
     data_list = []
     if mode == "windows":
         if windows is None:

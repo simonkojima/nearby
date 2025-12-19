@@ -96,14 +96,16 @@ def mean_erds(
     """
     type_obj = check_obj_type(obj)
 
+    obj = obj.copy()
+
     if baseline is not None:
         if type_obj == "tfr":
-            obj = obj.copy().apply_baseline(baseline, "percent")
+            obj = obj.apply_baseline(baseline, "percent")
         elif type_obj == "epochs":
-            obj = obj.copy().apply_baseline(baseline)
+            obj = obj.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.copy().pick(picks=picks)
+        obj = obj.pick(picks=picks)
 
     df_dict = {"channel": [], "mean_erds": []}
     for ch in obj.ch_names:
@@ -223,14 +225,16 @@ def standard_deviation_erds(
     """
     type_obj = check_obj_type(obj)
 
+    obj = obj.copy()
+
     if baseline is not None:
         if type_obj == "tfr":
-            obj = obj.copy().apply_baseline(baseline, "percent")
+            obj = obj.apply_baseline(baseline, "percent")
         elif type_obj == "epochs":
-            obj = obj.copy().apply_baseline(baseline)
+            obj = obj.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.copy().pick(picks=picks)
+        obj = obj.pick(picks=picks)
 
     df_dict = {"channel": [], "standard_deviation_erds": []}
     for ch in obj.ch_names:

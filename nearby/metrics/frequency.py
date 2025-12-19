@@ -145,14 +145,6 @@ def within_trial_frequency(
     if picks is not None:
         tfrs = tfrs.pick(picks=picks)
 
-    """
-    if (tmin is not None) or (tmax is not None):
-        tfrs = tfrs.crop(tmin=tmin, tmax=tmax)
-
-    if (fmin is not None) or (fmax is not None):
-        tfrs = tfrs.crop(fmin=fmin, fmax=fmax)
-    """
-
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
