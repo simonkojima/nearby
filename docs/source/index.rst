@@ -31,6 +31,7 @@ If you use Nearby in your study, please cite these publications.
 - Sébastien Rimbert, David Trocellier, Fabien Lotte, "Is Event-Related Desynchronization variability correlated with BCI performance?", 2022 IEEE International Conference on Metrology for Extended Reality, Artificial Intelligence and Neural Engineering (MetroXRAINE), 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
 
 .. toctree::
+   :hidden:
    :maxdepth: 2
    :caption: Contents:
 
