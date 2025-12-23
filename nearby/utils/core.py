@@ -48,27 +48,3 @@ def _get_obj_type(obj):
         )
 
     return type_obj
-
-
-def _check_obj_type(obj):  # Unused maybe?
-    if isinstance(obj, mne.time_frequency.tfr.EpochsTFR):
-        type_obj = "tfr"
-    elif isinstance(obj, mne.epochs.BaseEpochs):
-        type_obj = "epochs"
-    else:
-        raise ValueError(
-            "obj must be an instance of mne.time_frequency.tfr.BaseTFR or mne.epochs.BaseEpochs"
-        )
-    return type_obj
-
-
-def _check_averaged_obj_type(obj):  # Unused maybe?
-    if isinstance(obj, mne.time_frequency.tfr.AverageTFR):
-        type_obj = "tfr"
-    elif isinstance(obj, mne.evoked.Evoked):
-        type_obj = "evoked"
-    else:
-        raise ValueError(
-            "obj must be an instance of mne.time_frequency.tfr.BaseTFR or mne.epochs.BaseEpochs"
-        )
-    return type_obj

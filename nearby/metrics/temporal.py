@@ -11,15 +11,15 @@ from ..utils.core import (
 
 
 def within_trial_temporal(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
-        average=True,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
+    average=True,
 ):
     """
     Compute Within-Trial Temporal (WiTrialTemp) Variability values.
@@ -152,15 +152,15 @@ def within_trial_temporal(
 
 
 def between_trial_temporal(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Between-Trial Temporal (BtwTrialTemp) Variability values.
@@ -302,16 +302,16 @@ def between_trial_temporal(
 
 
 def between_trial_group_temporal(
-        objs,
-        centroid="mean",
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        additional_values=None,
-        weights="nave",
-        average=True,
+    objs,
+    centroid="mean",
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    additional_values=None,
+    weights="nave",
+    average=True,
 ):
     """
     Compute Between-Trial-Group Temporal (BtwTrialGrpTemp) values.

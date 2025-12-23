@@ -15,20 +15,20 @@ from ..utils.core import (
 
 
 def within_trial_frequency(
-        tfrs,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Within-Trial Frequency (WiTrialFreq) Variability values.
@@ -245,16 +245,16 @@ def within_trial_frequency(
 
 
 def between_trial_frequency(
-        tfrs,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    tfrs,
+    baseline=None,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Between-Trial Frequency (BetTrialFreq) Variability values.
@@ -398,17 +398,17 @@ def between_trial_frequency(
 
 
 def between_trial_group_frequency(
-        tfrs,
-        centroid="mean",
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        weights="nave",
-        additional_values=None,
+    tfrs,
+    centroid="mean",
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    weights="nave",
+    additional_values=None,
 ):
     """
     Compute Between-Trial-Group Frequency (BtwTrialGrpFreq) Variability values.

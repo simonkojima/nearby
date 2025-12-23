@@ -15,20 +15,20 @@ from ..utils.core import (
 
 
 def within_trial_spatial(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Within-Trial Spatial (WiTrialSpat) Variability values.
@@ -258,16 +258,16 @@ def within_trial_spatial(
 
 
 def between_trial_spatial(
-        obj,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    obj,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute Between-Trial Spatial (BtwTrialSpat) Variability values.
@@ -420,17 +420,17 @@ def between_trial_spatial(
 
 
 def between_trial_group_spatial(
-        objs,
-        centroid="mean",
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        weights="nave",
-        additional_values=None,
+    objs,
+    centroid="mean",
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    weights="nave",
+    additional_values=None,
 ):
     """
     Compute Between-Trial-Group Spatial (BtwTrialGrpSpat) Variability values.

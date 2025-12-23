@@ -94,14 +94,14 @@ def mean_erds(
        "Is Event-Related Desynchronization variability correlated with BCI performance?",
        MetroXRAINE 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
     """
-    type_obj = check_obj_type(obj)
+    type_obj = _get_obj_type(obj)
 
     obj = obj.copy()
 
     if baseline is not None:
-        if type_obj == "tfr":
+        if type_obj == "EpochsTFR":
             obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "epochs":
+        elif type_obj == "Epochs":
             obj = obj.apply_baseline(baseline)
 
     if picks is not None:
@@ -110,7 +110,7 @@ def mean_erds(
     df_dict = {"channel": [], "mean_erds": []}
     for ch in obj.ch_names:
 
-        if type_obj == "tfr":
+        if type_obj == "EpochsTFR":
             data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
             # data.shape: n_epochs, n_channels, n_freqs, n_times
 
@@ -120,7 +120,7 @@ def mean_erds(
             data = data.mean(1)
             # data.shape: n_epochs, n_times
 
-        elif type_obj == "epochs":
+        elif type_obj == "Epochs":
             data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
             # data.shape: n_epochs, n_channels, n_times
 
@@ -139,7 +139,7 @@ def mean_erds(
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
 
@@ -223,14 +223,14 @@ def standard_deviation_erds(
        "Is Event-Related Desynchronization variability correlated with BCI performance?",
        MetroXRAINE 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
     """
-    type_obj = check_obj_type(obj)
+    type_obj = _get_obj_type(obj)
 
     obj = obj.copy()
 
     if baseline is not None:
-        if type_obj == "tfr":
+        if type_obj == "EpochsTFR":
             obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "epochs":
+        elif type_obj == "Epochs":
             obj = obj.apply_baseline(baseline)
 
     if picks is not None:
@@ -238,7 +238,7 @@ def standard_deviation_erds(
 
     df_dict = {"channel": [], "standard_deviation_erds": []}
     for ch in obj.ch_names:
-        if type_obj == "tfr":
+        if type_obj == "EpochsTFR":
             data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
             # data.shape: n_epochs, n_channels, n_freqs, n_times
 
@@ -250,7 +250,7 @@ def standard_deviation_erds(
 
             data = data.mean(1)
             # data.shape: n_epochs
-        elif type_obj == "epochs":
+        elif type_obj == "Epochs":
             data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
             # data.shape: n_epochs, n_channels, n_times
 
@@ -268,6 +268,6 @@ def standard_deviation_erds(
     df = pd.DataFrame(df_dict)
 
     if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
+        df = _add_values_to_df(df, additional_values)
 
     return df
