@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
 
-from ..utils.core import _get_obj_type, _add_values_to_df
+from ..utils.core import _get_data_type, _add_values_to_df
 
 
 def mean_erds(
-        obj,
+        data,
         baseline=None,
         fmin=None,
         fmax=None,
@@ -94,41 +94,41 @@ def mean_erds(
        "Is Event-Related Desynchronization variability correlated with BCI performance?",
        MetroXRAINE 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
     """
-    type_obj = _get_obj_type(obj)
+    type_data = _get_data_type(data)
 
-    obj = obj.copy()
+    data = data.copy()
 
     if baseline is not None:
-        if type_obj == "EpochsTFR":
-            obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "Epochs":
-            obj = obj.apply_baseline(baseline)
+        if type_data == "EpochsTFR":
+            data = data.apply_baseline(baseline, "percent")
+        elif type_data == "Epochs":
+            data = data.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        data = data.pick(picks=picks)
 
     df_dict = {"channel": [], "mean_erds": []}
-    for ch in obj.ch_names:
+    for ch in data.ch_names:
 
-        if type_obj == "EpochsTFR":
-            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-            # data.shape: n_epochs, n_channels, n_freqs, n_times
+        if type_data == "EpochsTFR":
+            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_freqs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_freqs, n_times
 
-            data = data.mean(1)
-            # data.shape: n_epochs, n_times
+            X = X.mean(1)
+            # X.shape: n_epochs, n_times
 
-        elif type_obj == "Epochs":
-            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+        elif type_data == "Epochs":
+            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
             # data.shape: n_epochs, n_channels, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_times
 
-        mean = data.mean(1)
-        # mean.shape: n_epochs
+        mean = X.mean(1)
+        # X.shape: n_epochs
 
         if average:
             mean = mean.mean(0)
@@ -145,7 +145,7 @@ def mean_erds(
 
 
 def standard_deviation_erds(
-        obj,
+        data,
         baseline=None,
         fmin=None,
         fmax=None,
@@ -223,44 +223,44 @@ def standard_deviation_erds(
        "Is Event-Related Desynchronization variability correlated with BCI performance?",
        MetroXRAINE 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
     """
-    type_obj = _get_obj_type(obj)
+    type_data = _get_data_type(data)
 
-    obj = obj.copy()
+    data = data.copy()
 
     if baseline is not None:
-        if type_obj == "EpochsTFR":
-            obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "Epochs":
-            obj = obj.apply_baseline(baseline)
+        if type_data == "EpochsTFR":
+            data = data.apply_baseline(baseline, "percent")
+        elif type_data == "Epochs":
+            data = data.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        data = data.pick(picks=picks)
 
     df_dict = {"channel": [], "standard_deviation_erds": []}
-    for ch in obj.ch_names:
-        if type_obj == "EpochsTFR":
-            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-            # data.shape: n_epochs, n_channels, n_freqs, n_times
+    for ch in data.ch_names:
+        if type_data == "EpochsTFR":
+            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_freqs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_freqs, n_times
 
-            data = data.mean(1)
-            # data.shape: n_epochs, n_times
+            X = X.mean(1)
+            # X.shape: n_epochs, n_times
 
-            data = data.mean(1)
-            # data.shape: n_epochs
-        elif type_obj == "Epochs":
-            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # data.shape: n_epochs, n_channels, n_times
+            X = X.mean(1)
+            # X.shape: n_epochs
+        elif type_data == "Epochs":
+            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # X.shape: n_epochs, n_channels, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_times
 
-            data = data.mean(1)
-            # data.shape: n_epochs
+            X = X.mean(1)
+            # X.shape: n_epochs
 
-        std = np.std(data)
+        std = np.std(X)
 
         df_dict["channel"].append(ch)
         df_dict["standard_deviation_erds"].append(std)

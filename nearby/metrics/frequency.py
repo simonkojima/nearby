@@ -10,25 +10,25 @@ from ..mean import mean_frechet_p2, mean_extrinsic
 from ..utils.core import (
     _add_values_to_df,
     _auto_windows,
-    _get_obj_type,
+    _get_data_type,
 )
 
 
 def within_trial_frequency(
-    tfrs,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Frequency (WiTrialFreq) Variability values.
@@ -132,25 +132,25 @@ def within_trial_frequency(
        obtain an epoch dispersion.
     4. Average epoch dispersions across epochs (or return per-epoch values).
     """
-    type_obj = _get_obj_type(tfrs)
+    type_data = _get_data_type(data)
 
-    if not (type_obj == "EpochsTFR"):
-        raise ValueError("obj must be an instance of EpochsTFR objects.")
+    if not (type_data == "EpochsTFR"):
+        raise ValueError("data must be an instance of EpochsTFR objects.")
 
-    tfrs = tfrs.copy()
+    data = data.copy()
 
     if baseline is not None:
-        tfrs = tfrs.apply_baseline(baseline, "percent")
+        data = data.apply_baseline(baseline, "percent")
 
     if picks is not None:
-        tfrs = tfrs.pick(picks=picks)
+        data = data.pick(picks=picks)
 
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
     df_dict = {"channel": [], "within_trial_frequency": []}
 
-    data_dict = {}
+    X_dict = {}
     if mode == "windows":
         if windows is None:
             windows = _auto_windows(
@@ -160,68 +160,68 @@ def within_trial_frequency(
                 tmax=tmax,
             )
 
-        for ch in tfrs.ch_names:
-            data_dict[ch] = []
+        for ch in data.ch_names:
+            X_dict[ch] = []
             for window in windows:
-                data = tfrs.get_data(
+                X = data.get_data(
                     tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax, picks=ch
                 )
-                # data.shape: n_epochs, n_channels, n_freqs, n_times
+                # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-                data = data.squeeze()
-                # data.shape: n_epochs, n_freqs, n_times
+                X = X.squeeze()
+                # X.shape: n_epochs, n_freqs, n_times
 
-                data = data.mean(2)
-                # data.shape: n_epochs, n_freqs
+                X = X.mean(2)
+                # X.shape: n_epochs, n_freqs
 
-                data_dict[ch].append(data)
+                X_dict[ch].append(X)
 
-            data_dict[ch] = np.array(data_dict[ch])
-            # data.shape: n_windows, n_epochs, n_freqs
+            X_dict[ch] = np.array(X_dict[ch])
+            # X.shape: n_windows, n_epochs, n_freqs
 
-            data_dict[ch] = data_dict[ch].transpose(1, 0, 2)
-            # data.shape: n_epochs, n_windows, n_freqs
+            X_dict[ch] = X_dict[ch].transpose(1, 0, 2)
+            # X.shape: n_epochs, n_windows, n_freqs
 
     elif mode == "all_samples":
-        for ch in tfrs.ch_names:
-            data = tfrs.get_data(fmin=fmin, fmax=fmax, picks=ch)
-            # tfrs.shape: n_epochs, n_channels, n_freqs, n_times
+        for ch in data.ch_names:
+            X = data.get_data(fmin=fmin, fmax=fmax, picks=ch)
+            # data.shape: n_epochs, n_channels, n_freqs, n_times
 
-            data = data.squeeze()
-            # data.shape: n_epochs, n_freqs, n_times
+            X = X.squeeze()
+            # X.shape: n_epochs, n_freqs, n_times
             # In all_samples mode, n_times is equal to the number of windows
-            # data.shape: n_epochs, n_freqs, n_windows
+            # X.shape: n_epochs, n_freqs, n_windows
 
-            data = data.transpose(0, 2, 1)
-            # data.shape: n_epochs, n_windows, n_freqs
+            X = X.transpose(0, 2, 1)
+            # X.shape: n_epochs, n_windows, n_freqs
 
-            data_dict[ch] = data
+            X_dict[ch] = X
 
     else:
         raise ValueError("mode must be 'windows' or 'all_samples'")
 
-    for ch in tfrs.ch_names:
-        n_epochs, n_windows, _ = data_dict[ch].shape
+    for ch in data.ch_names:
+        n_epochs, n_windows, _ = X_dict[ch].shape
 
         dispersion = []
         for idx_trial in range(n_epochs):
-            data_trial = data_dict[ch][idx_trial, :, :].squeeze()
-            # data_trial.shape: n_windows, n_freqs
+            X_trial = X_dict[ch][idx_trial, :, :].squeeze()
+            # X_trial.shape: n_windows, n_freqs
 
             if metric == "angle":
-                mean = mean_frechet_p2(data_trial, verbosity=0)
+                mean = mean_frechet_p2(X_trial, verbosity=0)
 
                 distances_trial = []
                 for n in range(n_windows):
-                    d = distance_angle(mean, data_trial[n, :])
+                    d = distance_angle(mean, X_trial[n, :])
                     distances_trial.append(d)
 
             elif metric == "cosine":
-                mean = mean_extrinsic(data_trial)
+                mean = mean_extrinsic(X_trial)
 
                 distances_trial = []
                 for n in range(n_windows):
-                    d = scipy.spatial.distance.cosine(mean, data_trial[n, :])
+                    d = scipy.spatial.distance.cosine(mean, X_trial[n, :])
                     distances_trial.append(d)
 
             dispersion_within_trial = np.mean(distances_trial)
@@ -245,16 +245,16 @@ def within_trial_frequency(
 
 
 def between_trial_frequency(
-    tfrs,
-    baseline=None,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Between-Trial Frequency (BetTrialFreq) Variability values.
@@ -332,49 +332,49 @@ def between_trial_frequency(
     time within the selected window (``tmin``–``tmax``). Variability is then measured
     as the dispersion of these spectra around a mean spectrum estimated across epochs.
     """
-    type_obj = _get_obj_type(tfrs)
+    type_data = _get_data_type(data)
 
-    if not (type_obj == "EpochsTFR"):
-        raise ValueError("obj must be an instance of EpochsTFR objects.")
+    if not (type_data == "EpochsTFR"):
+        raise ValueError("data must be an instance of EpochsTFR objects.")
 
-    tfrs = tfrs.copy()
+    data = data.copy()
 
     if baseline is not None:
-        tfrs = tfrs.apply_baseline(baseline, "percent")
+        data = data.apply_baseline(baseline, "percent")
 
     if picks is not None:
-        tfrs = tfrs.pick(picks=picks)
+        data = data.pick(picks=picks)
 
     if not ((metric == "angle") or (metric == "cosine")):
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
     df_dict = {"channel": [], "between_trial_frequency": []}
 
-    for ch in tfrs.ch_names:
-        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-        # data.shape: n_epochs, n_channels, n_freqs, n_times
+    for ch in data.ch_names:
+        X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+        # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-        data = data.squeeze()
-        # data.shape: n_epochs, n_freqs, n_times
+        X = X.squeeze()
+        # X.shape: n_epochs, n_freqs, n_times
 
-        data = data.mean(2)
-        # data.shape: n_epochs, n_freqs
+        X = X.mean(2)
+        # X.shape: n_epochs, n_freqs
 
-        n_epochs, _ = data.shape
+        n_epochs, _ = X.shape
 
         distances = []
 
         if metric == "angle":
-            mean = mean_frechet_p2(data, verbosity=0)
+            mean = mean_frechet_p2(X, verbosity=0)
 
             for n in range(n_epochs):
-                d = distance_angle(mean, data[n, :])
+                d = distance_angle(mean, X[n, :])
                 distances.append(d)
         elif metric == "cosine":
-            mean = mean_extrinsic(data)
+            mean = mean_extrinsic(X)
 
             for n in range(n_epochs):
-                d = scipy.spatial.distance.cosine(mean, data[n, :])
+                d = scipy.spatial.distance.cosine(mean, X[n, :])
                 distances.append(d)
 
         else:
@@ -398,17 +398,16 @@ def between_trial_frequency(
 
 
 def between_trial_group_frequency(
-    tfrs,
-    centroid="mean",
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    weights="nave",
-    additional_values=None,
+        data,
+        centroid="mean",
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Between-Trial-Group Frequency (BtwTrialGrpFreq) Variability values.
@@ -494,67 +493,78 @@ def between_trial_group_frequency(
 
     """
 
-    if isinstance(centroid, str):
-        match centroid:
-            case "mean":
-                tfr_centroid = mne.time_frequency.combine_tfr(tfrs, weights=weights)
-            case _:
-                raise NotImplementedError(f"centroid={centroid} is not implemented.")
-    else:
-        tfr_centroid = centroid
+    def proc(data, tmin, tmax, fmin, fmax, ch):
+        X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+        # X.shape: n_channels, n_freqs, n_times
 
-    type_tfr_centroid = _get_obj_type(tfr_centroid)
-    type_tfrs = _get_obj_type(tfrs)
+        X = X.squeeze()
+        # X.shape: n_freqs, n_times
 
-    if not (type_tfr_centroid == "AverageTFR"):
-        raise ValueError("centroid must be an instance of AverageTFR objects.")
+        X = X.mean(1)
+        # X.shape: n_freqs
 
-    if not (type_tfrs == "list_AverageTFR"):
-        raise ValueError("tfrs must be an instance of list of AverageTFR objects.")
+        return X
 
-    tfr_centroid = tfr_centroid.copy()
-    tfrs = [tfrs[n].copy() for n in range(len(tfrs))]
+    type_data = _get_data_type(data)
+    if not (type_data == "list_AverageTFR"):
+        raise ValueError("data must be an instance of list of AverageTFR objects.")
+
+    data = [data[n].copy() for n in range(len(data))]
 
     if picks is not None:
-        tfr_centroid = tfr_centroid.pick(picks=picks)
-        for n in range(len(tfrs)):
-            tfrs[n] = tfrs[n].pick(picks=picks)
+        for n in range(len(data)):
+            data[n] = data[n].pick(picks=picks)
 
-    if not ((metric == "angle") or (metric == "cosine")):
-        raise ValueError("metrics must be 'angle' or 'cosine'")
+    if isinstance(centroid, str):
+        if centroid not in ["mean"]:
+            raise ValueError(
+                "centroid must be 'mean' or instance of AverageTFR objects."
+            )
+        data_centroid = None
+    else:
+        data_centroid = centroid
+        type_data_centroid = _get_data_type(data_centroid)
+
+        if type_data_centroid != "AverageTFR":
+            raise ValueError("centroid must be an instance of AverageTFR objects.")
+
+        data_centroid = data_centroid.copy()
+        data_centroid = data_centroid.pick(picks=picks)
+
+    if metric not in ["angle", "cosine"]:
+        raise ValueError("metric must be 'angle' or 'cosine'")
 
     df_dict = {"channel": [], "between_trial_group_frequency": []}
 
-    def proc(tfrs, ch):
-        data = tfrs.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-        # data.shape: n_channels, n_freqs, n_times
+    for ch in data[0].ch_names:
 
-        data = data.squeeze()
-        # data.shape: n_freqs, n_times
+        X_list = [
+            proc(data[n], tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch)
+            for n in range(len(data))
+        ]
 
-        data = data.mean(1)
-        # data.shape: n_freqs
-
-        return data
-
-    for ch in tfr_centroid.ch_names:
-
-        data_centroid = proc(tfr_centroid, ch=ch)
-        data_list = [proc(tfrs[n], ch=ch) for n in range(len(tfrs))]
+        if data_centroid is not None:
+            X_centroid = proc(
+                data_centroid, tmin=tmin, tmax=tmax, fmin=tmin, fmax=fmax, ch=ch
+            )
+        else:
+            if metric == "angle":
+                X_centroid = mean_frechet_p2(X_list, verbosity=0)
+            elif metric == "cosine":
+                X_centroid = mean_extrinsic(X_list)
 
         distances = []
 
         if metric == "angle":
-            for data in data_list:
-                d = distance_angle(data_centroid, data)
+            for X in X_list:
+                d = distance_angle(X, X_centroid)
                 distances.append(d)
         elif metric == "cosine":
-            for data in data_list:
-                d = scipy.spatial.distance.cosine(data_centroid, data)
+            for X in X_list:
+                d = scipy.spatial.distance.cosine(X, X_centroid)
                 distances.append(d)
-
         else:
-            raise ValueError("metrics must be 'angle' or 'cosine'")
+            raise ValueError("metric must be 'angle' or 'cosine'")
 
         if average:
             distances = np.array(distances)

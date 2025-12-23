@@ -10,25 +10,25 @@ from ..mean import mean_extrinsic, mean_frechet_p2
 from ..utils.core import (
     _add_values_to_df,
     _auto_windows,
-    _get_obj_type,
+    _get_data_type,
 )
 
 
 def within_trial_spatial(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Spatial (WiTrialSpat) Variability values.
@@ -139,23 +139,23 @@ def within_trial_spatial(
     This function is implemented only for :class:`mne.epochs.Epochs` and
     :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
-    type_obj = _get_obj_type(obj)
+    type_data = _get_data_type(data)
 
-    if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
-        raise ValueError("obj must be an instance of EpochsTFR or Epochs objects.")
+    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
+        raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
-    obj = obj.copy()
+    data = data.copy()
 
     if baseline is not None:
-        if type_obj == "tfr":
-            obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "epochs":
-            obj = obj.apply_baseline(baseline)
+        if type_data == "EpochsTFR":
+            data = data.apply_baseline(baseline, "percent")
+        elif type_data == "Epochs":
+            data = data.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        data = data.pick(picks=picks)
 
-    data_list = []
+    X_list = []
     if mode == "windows":
         if windows is None:
             windows = _auto_windows(
@@ -169,87 +169,84 @@ def within_trial_spatial(
                 raise ValueError(f"Two or more windows must be specified. {windows=}")
 
         for window in windows:
-            if type_obj == "EpochsTFR":
-                data = obj.get_data(
-                    tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax
-                )
-                # data.shape: n_epochs, n_channels, n_freqs, n_times
+            if type_data == "EpochsTFR":
+                X = data.get_data(tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax)
+                # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-                data = data.mean(2)
-                # data.shape: n_epochs, n_channels, n_times
+                X = X.mean(2)
+                # X.shape: n_epochs, n_channels, n_times
 
-                data = data.mean(2)
-                # data.shape: n_epochs, n_channels
-            elif type_obj == "Epochs":
-                data = obj.get_data(tmin=window[0], tmax=window[1], units="uV")
-                # data.shape: n_epochs, n_channels, n_times
+                X = X.mean(2)
+                # X.shape: n_epochs, n_channels
+            elif type_data == "Epochs":
+                X = data.get_data(tmin=window[0], tmax=window[1], units="uV")
+                # X.shape: n_epochs, n_channels, n_times
 
-                data = data.mean(2)
-                # data.shape: n_epochs, n_channels
+                X = X.mean(2)
+                # X.shape: n_epochs, n_channels
 
-            data_list.append(data)
+            X_list.append(X)
 
-        data = np.array(data_list)
-        # data.shape: n_windows, n_epochs, n_channels
+        X = np.array(X_list)
+        # X.shape: n_windows, n_epochs, n_channels
 
-        data = data.transpose(1, 0, 2)
-        # data.shape: n_epochs, n_windows, n_channels
+        X = X.transpose(1, 0, 2)
+        # X.shape: n_epochs, n_windows, n_channels
 
     elif mode == "all_samples":
-        if type_obj == "EpochsTFR":
-            data = obj.get_data()
-            # data.shape: n_epochs, n_channels, n_freqs, n_times
+        if type_data == "EpochsTFR":
+            X = data.get_data()
+            # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-            data = data.mean(2)
-            # data.shape: n_epochs, n_channels, n_times
-        elif type_obj == "Epochs":
-            data = obj.get_data(units="uV")
-            # data.shape: n_epochs, n_channels, n_times
+            X = X.mean(2)
+            # X.shape: n_epochs, n_channels, n_times
+        elif type_data == "Epochs":
+            X = data.get_data(units="uV")
+            # X.shape: n_epochs, n_channels, n_times
 
         # In all_samples mode, n_times is equal to the number of windows
-        # data.shape: n_epochs, n_channels, n_windows = n_epochs, n_channels, n_times
+        # X.shape: n_epochs, n_channels, n_windows = n_epochs, n_channels, n_times
 
-        data = data.transpose(0, 2, 1)
-        # data.shape: n_epochs, n_windows, n_channels
+        X = X.transpose(0, 2, 1)
+        # X.shape: n_epochs, n_windows, n_channels
 
     else:
         raise ValueError("mode must be 'windows' or 'all_samples'")
 
-    n_epochs, n_windows, _ = data.shape
+    n_epochs, n_windows, _ = X.shape
 
-    distances = []
+    dispersions_list = []
 
     for idx_trial in range(n_epochs):
-        data_trial = data[idx_trial, :, :].squeeze()
-        # data_trial.shape: n_windows, n_channels
+        X_trial = X[idx_trial, :, :].squeeze()
+        # X_trial.shape: n_windows, n_channels
 
+        distances_trial = []
         if metric == "angle":
-            mean = mean_frechet_p2(data_trial, verbosity=0)
+            mean = mean_frechet_p2(X_trial, verbosity=0)
 
-            distances_trial = []
             for n in range(n_windows):
-                d = distance_angle(mean, data_trial[n, :])
+                d = distance_angle(mean, X_trial[n, :])
                 distances_trial.append(d)
 
         elif metric == "cosine":
-            mean = mean_extrinsic(data_trial)
+            mean = mean_extrinsic(X_trial)
 
-            distances_trial = []
             for n in range(n_windows):
-                d = scipy.spatial.distance.cosine(mean, data_trial[n, :])
+                d = scipy.spatial.distance.cosine(mean, X_trial[n, :])
                 distances_trial.append(d)
 
         dispersion = np.mean(distances_trial)
 
-        distances.append(dispersion)
+        dispersions_list.append(dispersion)
 
     if average:
-        distances = np.mean(distances)
+        dispersions = np.mean(dispersions_list)
     else:
-        distances = json.dumps(distances)
+        dispersions = json.dumps(dispersions_list)
 
     df = pd.DataFrame()
-    df["within_trial_spatial"] = [distances]
+    df["within_trial_spatial"] = [dispersions]
 
     if additional_values is not None:
         df = _add_values_to_df(df, additional_values)
@@ -258,16 +255,16 @@ def within_trial_spatial(
 
 
 def between_trial_spatial(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Between-Trial Spatial (BtwTrialSpat) Variability values.
@@ -351,54 +348,54 @@ def between_trial_spatial(
     This function is implemented only for :class:`mne.epochs.Epochs` and
     :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
-    type_obj = _get_obj_type(obj)
+    type_data = _get_data_type(data)
 
-    if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
-        raise ValueError("obj must be an instance of EpochsTFR or Epochs objects.")
+    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
+        raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
-    obj = obj.copy()
+    data = data.copy()
 
     if baseline is not None:
-        if type_obj == "tfr":
-            obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "epochs":
-            obj = obj.apply_baseline(baseline)
+        if type_data == "EpochsTFR":
+            data = data.apply_baseline(baseline, "percent")
+        elif type_data == "Epochs":
+            data = data.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        data = data.pick(picks=picks)
 
-    if type_obj == "EpochsTFR":
-        data = obj.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
-        # data.shape: n_epochs, n_channels, n_freqs, n_times
+    if type_data == "EpochsTFR":
+        X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
+        # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-        data = data.mean(2)
-        # data.shape: n_epochs, n_channels, n_times
+        X = X.mean(2)
+        # X.shape: n_epochs, n_channels, n_times
 
-        data = data.mean(2)
-        # data.shape: n_epochs, n_channels
-    elif type_obj == "Epochs":
-        data = obj.get_data(tmin=tmin, tmax=tmax, units="uV")
-        # data.shape: n_epochs, n_channels, n_times
+        X = X.mean(2)
+        # X.shape: n_epochs, n_channels
+    elif type_data == "Epochs":
+        X = data.get_data(tmin=tmin, tmax=tmax, units="uV")
+        # X.shape: n_epochs, n_channels, n_times
 
-        data = data.mean(2)
-        # data.shape: n_epochs, n_channels
+        X = X.mean(2)
+        # X.shape: n_epochs, n_channels
 
-    n_epochs, _ = data.shape
+    n_epochs, _ = X.shape
 
     distances = []
 
     if metric == "cosine":
-        mean = mean_extrinsic(data)
+        mean = mean_extrinsic(X)
 
         for n in range(n_epochs):
-            d = scipy.spatial.distance.cosine(mean, data[n, :])
+            d = scipy.spatial.distance.cosine(mean, X[n, :])
             distances.append(d)
 
     elif metric == "angle":
-        mean = mean_frechet_p2(data, verbosity=0)
+        mean = mean_frechet_p2(X, verbosity=0)
 
         for n in range(n_epochs):
-            d = distance_angle(mean, data[n, :])
+            d = distance_angle(mean, X[n, :])
             distances.append(d)
 
     else:
@@ -420,17 +417,16 @@ def between_trial_spatial(
 
 
 def between_trial_group_spatial(
-    objs,
-    centroid="mean",
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    weights="nave",
-    additional_values=None,
+        data,
+        centroid="mean",
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Between-Trial-Group Spatial (BtwTrialGrpSpat) Variability values.
@@ -517,82 +513,100 @@ def between_trial_group_spatial(
     between single-trial epochs.
     """
 
-    type_objs = _get_obj_type(objs)
+    # ----- Define processing functions -----
+    def proc_tfr(tfr, tmin, tmax, fmin, fmax):
+        X = tfr.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
+        # X.shape: n_channels, n_freqs, n_times
 
-    if not ((type_objs == "list_Evoked") or (type_objs == "list_AverageTFR")):
+        X = X.mean(1)
+        # X.shape: n_channels, n_times
+
+        X = X.mean(1)
+        # X.shape: n_channels
+
+        return X
+
+    def proc_evoked(evoked, tmin, tmax):
+        X = evoked.get_data(tmin=tmin, tmax=tmax, units="uV")
+        # X.shape: n_channels, n_times
+
+        X = X.mean(1)
+        # X.shape: n_channels
+
+        return X
+
+    # ----- END: Define processing functions -----
+
+    type_data = _get_data_type(data)
+
+    if not ((type_data == "list_Evoked") or (type_data == "list_AverageTFR")):
         raise ValueError(
-            "objs must be an instance of list of Evoked or AverageTFR objects."
+            "data must be an instance of list of Evoked or AverageTFR objects."
         )
 
+    data = [data[n].copy() for n in range(len(data))]
+    if picks is not None:
+        for n in range(len(data)):
+            data[n] = data[n].pick(picks=picks)
+
+    if type_data == "list_AverageTFR":
+        X_list = [
+            proc_tfr(data[n], tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
+            for n in range(len(data))
+        ]
+
+    elif type_data == "list_Evoked":
+        X_list = [proc_evoked(data[n], tmin=tmin, tmax=tmax) for n in range(len(data))]
+
     if isinstance(centroid, str):
+        data_centroid = None
         match centroid:
             case "mean":
-                if type_objs == "list_Evoked":
-                    obj_centroid = mne.combine_evoked(objs, weights=weights)
-                elif type_objs == "list_AverageTFR":
-                    obj_centroid = mne.time_frequency.combine_tfr(objs, weights=weights)
+                if metric == "angle":
+                    X_centroid = mean_frechet_p2(X_list, verbosity=0)
+                elif metric == "cosine":
+                    X_centroid = mean_extrinsic(X_list)
+                else:
+                    raise ValueError("metrics must be 'angle' or 'cosine'")
             case _:
                 raise NotImplementedError(f"centroid={centroid} is not implemented.")
     else:
-        obj_centroid = centroid
+        data_centroid = centroid
+        type_data_centroid = _get_data_type(data_centroid)
+        if not (
+                (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
+        ):
+            raise ValueError(
+                "centroid must be an instance of Evoked or AverageTFR objects."
+            )
 
-    type_obj_centroid = _get_obj_type(obj_centroid)
-    if not ((type_obj_centroid == "Evoked") or (type_obj_centroid == "AverageTFR")):
-        raise ValueError(
-            "centroid must be an instance of Evoked or AverageTFR objects."
-        )
+        if type_data_centroid not in type_data:
+            # type_data expect "list_Evoked" or "list_AverageTFR"
+            # while type_data_centroid expect "Evoked" or "AverageTFR"
+            raise ValueError("centroid and data must be of the same type.")
 
-    if type_obj_centroid not in type_objs:
-        raise ValueError("centroid and objs must be of the same type.")
+        data_centroid = data_centroid.copy()
 
-    obj_centroid = obj_centroid.copy()
-    objs = [objs[n].copy() for n in range(len(objs))]
+        if picks is not None:
+            data_centroid = data_centroid.pick(picks=picks)
 
-    if picks is not None:
-        obj_centroid = obj_centroid.pick(picks=picks)
-        for n in range(len(objs)):
-            objs[n] = objs[n].pick(picks=picks)
-
-    def proc_tfr(tfr):
-        data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax)
-        # data.shape: n_channels, n_freqs, n_times
-
-        data = data.mean(1)
-        # data.shape: n_channels, n_times
-
-        data = data.mean(1)
-        # data.shape: n_channels
-
-        return data
-
-    def proc_evoked(evoked):
-        data = evoked.get_data(tmin=tmin, tmax=tmax, units="uV")
-        # data.shape: n_channels, n_times
-
-        data = data.mean(1)
-        # data.shape: n_channels
-
-        return data
-
-    if type_obj_centroid == "AverageTFR":
-
-        data_centroid = proc_tfr(obj_centroid)
-        data_list = [proc_tfr(objs[n]) for n in range(len(objs))]
-
-    elif type_obj_centroid == "Evoked":
-        data_centroid = proc_evoked(obj_centroid)
-        data_list = [proc_evoked(objs[n]) for n in range(len(objs))]
+        if type_data == "list_AverageTFR":
+            X_centroid = proc_tfr(
+                data_centroid, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax
+            )
+        elif type_data == "list_Evoked":
+            X_centroid = proc_evoked(data_centroid, tmin=tmin, tmax=tmax)
 
     distances = []
 
     if metric == "cosine":
-        for data in data_list:
-            d = scipy.spatial.distance.cosine(data_centroid, data)
+        for X in X_list:
+            d = scipy.spatial.distance.cosine(X_centroid, X)
             distances.append(d)
 
     elif metric == "angle":
-        for data in data_list:
-            d = distance_angle(data_centroid, data)
+        for X in X_list:
+            d = distance_angle(X_centroid, X)
             distances.append(d)
 
     else:

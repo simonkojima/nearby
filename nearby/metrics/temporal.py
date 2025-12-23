@@ -1,25 +1,31 @@
 import json
 import numpy as np
 import pandas as pd
-import tslearn.metrics
 import mne
+
+from tslearn.metrics import dtw, soft_dtw, gamma_soft_dtw
+from tslearn.barycenters import (
+    euclidean_barycenter,
+    dtw_barycenter_averaging,
+    dtw_barycenter_averaging_subgradient,
+)
 
 from ..utils.core import (
     _add_values_to_df,
-    _get_obj_type,
+    _get_data_type,
 )
 
 
 def within_trial_temporal(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    additional_values=None,
-    average=True,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        additional_values=None,
+        average=True,
 ):
     """
     Compute Within-Trial Temporal (WiTrialTemp) Variability values.
@@ -28,17 +34,17 @@ def within_trial_temporal(
     For each channel, it computes the standard deviation over time within an epoch,
     then optionally averages those values across epochs.
 
-    - If ``obj`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
+    - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
       first restricted to the specified frequency band (``fmin``–``fmax``) and then
       averaged over frequency, yielding a single time course per epoch.
-    - If ``obj`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
+    - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
       directly (in microvolts).
 
     Parameters
     ----------
     obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
         The MNE object containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
-        or epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
+        or epoched time-frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
     baseline : tuple of float | list of float | None, optional
         Time interval (in seconds) used for baseline correction. If ``None``, no baseline
@@ -46,11 +52,11 @@ def within_trial_temporal(
 
         For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
 
-            obj.copy().apply_baseline(baseline, mode="percent")
+            data.copy().apply_baseline(baseline, mode="percent")
 
         For :class:`mne.epochs.Epochs`, baseline correction is applied as::
 
-            obj.copy().apply_baseline(baseline)
+            data.copy().apply_baseline(baseline)
 
     fmin, fmax : float | None, optional
         Frequency band of interest (in Hz). Only used when ``obj`` is an
@@ -96,43 +102,43 @@ def within_trial_temporal(
     This function is implemented only for :class:`mne.epochs.Epochs` and
     :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
-    type_obj = _get_obj_type(obj)
+    type_data = _get_data_type(data)
 
-    if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
+    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
         raise ValueError(
             "within_trial_temporal is only implemented for EpochsTFR or Epochs objects."
         )
 
-    obj = obj.copy()
+    data = data.copy()
 
     if baseline is not None:
-        if type_obj == "EpochsTFR":
-            obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "Epochs":
-            obj = obj.apply_baseline(baseline)
+        if type_data == "EpochsTFR":
+            data = data.apply_baseline(baseline, "percent")
+        elif type_data == "Epochs":
+            data = data.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        data = data.pick(picks=picks)
 
     df_dict = {"channel": [], "within_trial_temporal": []}
-    for ch in obj.ch_names:
-        if type_obj == "EpochsTFR":
-            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-            # data.shape: n_epochs, n_channels, n_freqs, n_times
+    for ch in data.ch_names:
+        if type_data == "EpochsTFR":
+            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_freqs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_freqs, n_times
 
-            data = data.mean(1)
-            # data.shape: n_epochs, n_times
-        elif type_obj == "Epochs":
-            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # data.shape: n_epochs, n_channels, n_times
+            X = X.mean(1)
+            # X.shape: n_epochs, n_times
+        elif type_data == "Epochs":
+            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # X.shape: n_epochs, n_channels, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_times
 
-        sd = np.std(data, axis=1)
+        sd = np.std(X, axis=1)
 
         if average:
             sd = sd.mean(0)
@@ -152,15 +158,18 @@ def within_trial_temporal(
 
 
 def between_trial_temporal(
-    obj,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        barycenter="dba",
+        params_barycenter=None,
+        params_dtw=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Between-Trial Temporal (BtwTrialTemp) Variability values.
@@ -171,16 +180,16 @@ def between_trial_temporal(
     this mean time course using Dynamic Time Warping (DTW). The final channel-level
     score is the average DTW distance across epochs.
 
-    - If ``obj`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
+    - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
       first restricted to the specified frequency band (``fmin``–``fmax``) and then
       averaged over frequency, yielding a single time course per epoch.
-    - If ``obj`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
+    - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
       directly (in microvolts).
 
     Parameters
     ----------
-    obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        The MNE object containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
+    data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
+        The MNE dataect containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
         or epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
     baseline : tuple of float | list of float | None, optional
@@ -189,14 +198,14 @@ def between_trial_temporal(
 
         For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
 
-            obj.copy().apply_baseline(baseline, mode="percent")
+            data.copy().apply_baseline(baseline, mode="percent")
 
         For :class:`mne.epochs.Epochs`, baseline correction is applied as::
 
-            obj.copy().apply_baseline(baseline)
+            data.copy().apply_baseline(baseline)
 
     fmin, fmax : float | None, optional
-        Frequency band of interest (in Hz). Only used when ``obj`` is an
+        Frequency band of interest (in Hz). Only used when ``data`` is an
         :class:`mne.time_frequency.tfr.EpochsTFR`. If ``None``, MNE defaults are used.
 
     tmin, tmax : float | None, optional
@@ -212,7 +221,7 @@ def between_trial_temporal(
         DTW distances across epochs.
 
         If ``False``, returns a per-channel JSON-encoded list containing one DTW
-        distance per epoch (in the same epoch order as ``obj``).
+        distance per epoch (in the same epoch order as ``data``).
 
     additional_values : dict | None, optional
         Additional columns to append to the returned dataframe. This is useful for
@@ -239,49 +248,72 @@ def between_trial_temporal(
     :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
 
-    type_obj = _get_obj_type(obj)
+    if params_barycenter is None:
+        params_barycenter = {}
+    else:
+        params_barycenter = params_barycenter.copy()
 
-    if not ((type_obj == "EpochsTFR") or (type_obj == "Epochs")):
+    if params_dtw is None:
+        params_dtw = {}
+    else:
+        params_dtw = params_dtw.copy()
+
+    type_data = _get_data_type(data)
+
+    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
         raise ValueError(
-            "within_trial_temporal is only implemented for EpochsTFR or Epochs objects."
+            "between_trial_temporal is only implemented for EpochsTFR or Epochs objects."
         )
 
-    obj = obj.copy()
+    data = data.copy()
 
     if baseline is not None:
-        if type_obj == "tfr":
-            obj = obj.apply_baseline(baseline, "percent")
-        elif type_obj == "epochs":
-            obj = obj.apply_baseline(baseline)
+        if type_data == "EpochsTFR":
+            data = data.apply_baseline(baseline, "percent")
+        elif type_data == "Epochs":
+            data = data.apply_baseline(baseline)
 
     if picks is not None:
-        obj = obj.pick(picks=picks)
+        data = data.pick(picks=picks)
 
     df_dict = {"channel": [], "between_trial_temporal": []}
-    for ch in obj.ch_names:
-        if type_obj == "EpochsTFR":
-            data = obj.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-            # data.shape: n_epochs, n_channels, n_freqs, n_times
+    for ch in data.ch_names:
+        if type_data == "EpochsTFR":
+            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            # X.shape: n_epochs, n_channels, n_freqs, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_freqs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_freqs, n_times
 
-            data = data.mean(1)
-            # data.shape: n_epochs, n_times
+            X = X.mean(1)
+            # X.shape: n_epochs, n_times
 
-        elif type_obj == "Epochs":
-            data = obj.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # data.shape: n_epochs, n_channels, n_times
+        elif type_data == "Epochs":
+            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+            # X.shape: n_epochs, n_channels, n_times
 
-            data = np.squeeze(data)
-            # data.shape: n_epochs, n_times
+            X = np.squeeze(X)
+            # X.shape: n_epochs, n_times
 
-        mean = data.mean(0)
-        # mean.shape: n_times
+        match barycenter:
+            case "dba":
+                mean = dtw_barycenter_averaging(X, **params_barycenter)
+            case "dba_subgradient":
+                mean = dtw_barycenter_averaging_subgradient(X, **params_barycenter)
+            case "euclidean":
+                mean = euclidean_barycenter(X, **params_barycenter)
+            case _:
+                raise ValueError(f"Invalid barycenter method: {barycenter}")
+
+            # mean.shape: n_times, 1
+
+        n_epochs = X.shape[0]
 
         scores = []
-        for m in range(data.shape[0]):
-            score = tslearn.metrics.dtw(mean, data[m, :])
+        for m in range(n_epochs):
+            # X[m, None].shape: n_times, 1
+            # mean.shape: n_times, 1
+            score = dtw(X[m, None].T, mean, **params_dtw)
             scores.append(score)
 
         if average:
@@ -302,22 +334,24 @@ def between_trial_temporal(
 
 
 def between_trial_group_temporal(
-    objs,
-    centroid="mean",
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    additional_values=None,
-    weights="nave",
-    average=True,
+        data,
+        centroid="mean",
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        barycenter="dba",
+        params_barycenter=None,
+        params_dtw=None,
+        additional_values=None,
+        average=True,
 ):
     """
     Compute Between-Trial-Group Temporal (BtwTrialGrpTemp) values.
 
     This metric quantifies how much the group-level time courses differ from
-    each other. Each element of ``objs`` is assumed to represent a *trial-group
+    each other. Each element of ``data`` is assumed to represent a *trial-group
     representative* time course (e.g., an averaged waveform such as an
     :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`).
 
@@ -334,19 +368,19 @@ def between_trial_group_temporal(
 
     Parameters
     ----------
-    objs : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
-        List of group-representative objects. All entries must be the same type:
+    data : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
+        List of group-representative dataects. All entries must be the same type:
         either :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`.
 
     centroid : {"mean"} | mne.Evoked | mne.time_frequency.tfr.AverageTFR, default="mean"
         Definition of the centroid (reference) waveform used for DTW comparisons.
 
-        - ``"mean"``: the centroid is computed as the weighted average of ``objs``
+        - ``"mean"``: the centroid is computed as the weighted average of ``data``
           using :func:`mne.combine_evoked` (for :class:`mne.Evoked`) or
           :func:`mne.time_frequency.combine_tfr` (for :class:`mne.time_frequency.tfr.AverageTFR`).
-        - If an object is provided, it is used directly as the centroid.
+        - If an dataect is provided, it is used directly as the centroid.
 
-        The centroid must be of the same type as the elements of ``objs``.
+        The centroid must be of the same type as the elements of ``data``.
 
     fmin, fmax : float | None, optional
         Frequency band of interest (in Hz). Only used when inputs are
@@ -397,78 +431,120 @@ def between_trial_group_temporal(
     :class:`mne.time_frequency.tfr.AverageTFR`.
     """
 
-    type_objs = _get_obj_type(objs)
-
-    if not ((type_objs == "list_Evoked") or (type_objs == "list_AverageTFR")):
-        raise ValueError(
-            "objs must be an instance of list of Evoked or AverageTFR objects."
-        )
-
-    if isinstance(centroid, str):
-        match centroid:
-            case "mean":
-                if type_objs == "list_Evoked":
-                    obj_centroid = mne.combine_evoked(objs, weights=weights)
-                elif type_objs == "list_AverageTFR":
-                    obj_centroid = mne.time_frequency.combine_tfr(objs, weights=weights)
-            case _:
-                raise NotImplementedError(f"centroid={centroid} is not implemented.")
+    if params_barycenter is None:
+        params_barycenter = {}
     else:
-        obj_centroid = centroid
+        params_barycenter = params_barycenter.copy()
 
-    type_obj_centroid = _get_obj_type(obj_centroid)
-    if not ((type_obj_centroid == "Evoked") or (type_obj_centroid == "AverageTFR")):
+    if params_dtw is None:
+        params_dtw = {}
+    else:
+        params_dtw = params_dtw.copy()
+
+    def proc_tfr(tfr, tmin, tmax, fmin, fmax, ch):
+        X = tfr.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+        # X.shape: n_channels, n_freqs, n_times
+
+        X = np.squeeze(X)
+        # X.shape: n_freqs, n_times
+
+        X = X.mean(0)
+        # X.shape: n_times
+
+        return X
+
+    def proc_evoked(evoked, tmin, tmax, ch):
+        X = evoked.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
+        # X.shape: n_channels, n_times
+
+        X = np.squeeze(X)
+        # X.shape: n_times
+
+        return X
+
+    type_data = _get_data_type(data)
+
+    if not ((type_data == "list_Evoked") or (type_data == "list_AverageTFR")):
         raise ValueError(
-            "centroid must be an instance of Evoked or AverageTFR objects."
+            "data must be an instance of list of Evoked or AverageTFR objects."
         )
 
-    if type_obj_centroid not in type_objs:
-        raise ValueError("centroid and objs must be of the same type.")
+    if not isinstance(centroid, str):
+        data_centroid = centroid
 
-    obj_centroid = obj_centroid.copy()
-    objs = [objs[n].copy() for n in range(len(objs))]
+        type_data_centroid = _get_data_type(data_centroid)
+        if not (
+                (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
+        ):
+            raise ValueError(
+                "centroid must be an instance of Evoked or AverageTFR objects."
+            )
+
+        if type_data_centroid not in type_data:
+            # type_data expect "list_Evoked" or "list_AverageTFR"
+            # while type_data_centroid expect "Evoked" or "AverageTFR"
+            raise ValueError("centroid and data must be of the same type.")
+
+        data_centroid = data_centroid.copy()
+        if picks is not None:
+            data_centroid = data_centroid.pick(picks=picks)
+    else:
+        if centroid not in ["mean"]:
+            raise ValueError(f"Invalid centroid: {centroid}")
+        data_centroid = None
+
+    data = [data[n].copy() for n in range(len(data))]
 
     if picks is not None:
-        obj_centroid = obj_centroid.pick(picks=picks)
-        for n in range(len(objs)):
-            objs[n] = objs[n].pick(picks=picks)
-
-    def proc_tfr(tfr):
-        data = tfr.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-        # data.shape: n_channels, n_freqs, n_times
-
-        data = np.squeeze(data)
-        # data.shape: n_freqs, n_times
-
-        data = data.mean(0)
-        # data.shape: n_times
-
-        return data
-
-    def proc_evoked(evoked):
-        data = evoked.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-        # data.shape: n_channels, n_times
-
-        data = np.squeeze(data)
-        # data.shape: n_times
-
-        return data
+        for n in range(len(data)):
+            data[n] = data[n].pick(picks=picks)
 
     df_dict = {"channel": [], "between_trial_group_temporal": []}
-    for ch in obj_centroid.ch_names:
-        if type_obj_centroid == "AverageTFR":
+    for ch in data[0].ch_names:
+        if type_data == "list_AverageTFR":
+            X_list = [
+                proc_tfr(data[n], tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch)
+                for n in range(len(data))
+            ]
+            if data_centroid is not None:
+                X_centroid = proc_tfr(
+                    data_centroid, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch
+                )
 
-            data_centroid = proc_tfr(obj_centroid)
-            data_list = [proc_tfr(objs[n]) for n in range(len(objs))]
+        elif type_data == "list_Evoked":
 
-        elif type_obj_centroid == "Evoked":
+            X_list = [
+                proc_evoked(data[n], tmin=tmin, tmax=tmax, ch=ch)
+                for n in range(len(data))
+            ]
 
-            data_centroid = proc_evoked(obj_centroid)
-            data_list = [proc_evoked(objs[n]) for n in range(len(objs))]
+            if data_centroid is not None:
+                X_centroid = proc_evoked(data_centroid, tmin=tmin, tmax=tmax, ch=ch)
+
+        if data_centroid is None:
+            match barycenter:
+                case "dba":
+                    X_centroid = dtw_barycenter_averaging(
+                        np.array(X_list), **params_barycenter
+                    )
+                case "dba_subgradient":
+                    X_centroid = dtw_barycenter_averaging_subgradient(
+                        np.array(X_list), **params_barycenter
+                    )
+                case "euclidean":
+                    X_centroid = euclidean_barycenter(
+                        np.array(X_list), **params_barycenter
+                    )
+                case _:
+                    raise ValueError(f"Invalid barycenter method: {barycenter}")
 
         scores = []
-        for data in data_list:
-            score = tslearn.metrics.dtw(data_centroid, data)
+        for X in X_list:
+            # np.atleast_2d(X).T: n_times, 1
+            # X_centroid.shape: n_times, 1
+
+            X = np.atleast_2d(X).T
+            score = dtw(X, X_centroid, **params_dtw)
             scores.append(score)
 
         if average:

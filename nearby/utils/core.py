@@ -20,31 +20,31 @@ def _add_values_to_df(df, values):
     return df
 
 
-def _get_obj_type(obj):
-    if isinstance(obj, mne.time_frequency.tfr.EpochsTFR):
-        type_obj = "EpochsTFR"
-    elif isinstance(obj, mne.epochs.BaseEpochs):
-        type_obj = "Epochs"
-    elif isinstance(obj, mne.time_frequency.tfr.AverageTFR):
-        type_obj = "AverageTFR"
-    elif isinstance(obj, mne.evoked.Evoked):
-        type_obj = "Evoked"
-    elif isinstance(obj, list):
-        type_obj = []
-        for o in obj:
-            type_obj.append(_get_obj_type(o))
-        type_obj = list(set(type_obj))
+def _get_data_type(data):
+    if isinstance(data, mne.time_frequency.tfr.EpochsTFR):
+        type_data = "EpochsTFR"
+    elif isinstance(data, mne.epochs.BaseEpochs):
+        type_data = "Epochs"
+    elif isinstance(data, mne.time_frequency.tfr.AverageTFR):
+        type_data = "AverageTFR"
+    elif isinstance(data, mne.evoked.Evoked):
+        type_data = "Evoked"
+    elif isinstance(data, list):
+        type_data = []
+        for _data in data:
+            type_data.append(_get_data_type(_data))
+        type_data = list(set(type_data))
 
-        if len(type_obj) > 1:
+        if len(type_data) > 1:
             raise ValueError("obj must be a list of the same type")
 
-        type_obj = f"list_{type_obj[0]}"
+        type_data = f"list_{type_data[0]}"
     else:
-        type_obj = None
+        type_data = None
 
-    if type_obj is None:
+    if type_data is None:
         raise ValueError(
-            "obj must be an instance of mne.time_frequency.tfr.BaseTFR, mne.epochs.BaseEpochs, mne.time_frequency.tfr.AverageTFR, mne.evoked.Evoked or list of these"
+            "data must be an instance of mne.time_frequency.tfr.BaseTFR, mne.epochs.BaseEpochs, mne.time_frequency.tfr.AverageTFR, mne.evoked.Evoked or list of these"
         )
 
-    return type_obj
+    return type_data
