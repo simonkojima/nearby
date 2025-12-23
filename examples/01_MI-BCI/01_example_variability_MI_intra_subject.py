@@ -242,6 +242,45 @@ results["BtwTrialFreq"] = btw_trial_freq["between_trial_frequency"].mean()
 print(f"BtwTrialFreq: {results['BtwTrialFreq']:.3f}")
 
 # %%
+# Class Stability
+# ===============
+
+class_stability_left = nearby.metrics.class_stability(
+    epochs=epochs["left_hand"], tmin=tmin, tmax=tmax
+)
+class_stability_right = nearby.metrics.class_stability(
+    epochs=epochs["right_hand"], tmin=tmin, tmax=tmax
+)
+
+class_stability = pd.concat([class_stability_left, class_stability_right])
+results["class_stability"] = class_stability["class_stability"].mean()
+print(f"class_stability: {results['class_stability']:.3f}")
+
+# %%
+# STDERD
+# ------
+
+std_erd_left = nearby.metrics.standard_deviation_erds(
+    epochs["left_hand"],
+    fmin=fmin,
+    fmax=fmax,
+    tmin=tmin,
+    tmax=tmax,
+    picks="C4",
+)
+std_erd_right = nearby.metrics.standard_deviation_erds(
+    epochs["right_hand"],
+    fmin=fmin,
+    fmax=fmax,
+    tmin=tmin,
+    tmax=tmax,
+    picks="C3",
+)
+std_erd = pd.concat([std_erd_left, std_erd_right])
+results["STDERD"] = std_erd["standard_deviation_erds"].mean()
+print(f"STDERD: {results['STDERD']:.3f}")
+
+# %%
 # Results
 # =======
 

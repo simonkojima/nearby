@@ -6,13 +6,13 @@ from ..utils.core import _add_values_to_df
 
 
 def class_stability(
-    epochs=None,
-    covs=None,
-    centroid="mean",
-    additional_values=None,
-    estimator="scm",
-    tmin=None,
-    tmax=None,
+        epochs=None,
+        covs=None,
+        tmin=None,
+        tmax=None,
+        centroid="mean",
+        estimator="scm",
+        additional_values=None,
 ):
     """
     Compute a Riemannian geometry-based class stability score.
@@ -44,6 +44,10 @@ def class_stability(
         A collection of covariance matrices. The array must be 3D and square in the
         last two dimensions. Matrices are assumed to be SPD.
 
+    tmin, tmax : float | None, optional
+        Time range of interest (in seconds) used when extracting epoch data from
+        ``epochs`` (passed to :meth:`mne.Epochs.get_data`).
+
     centroid : {"mean"} | array_like, shape (n_channels, n_channels), default="mean"
         Definition of the centroid covariance matrix.
 
@@ -51,18 +55,14 @@ def class_stability(
           :func:`pyriemann.utils.mean.mean_covariance` with ``metric="riemann"``.
         - If an array is provided, it is used directly as the centroid.
 
-    additional_values : dict | pandas.Series | None, optional
-        Additional columns to append to the returned dataframe (e.g., ``subject``,
-        ``session``, ``condition``, ``class``). Added via ``add_values_to_df``.
-
     estimator : str, default="scm"
         Covariance estimator passed to :class:`pyriemann.estimation.Covariances`
         when computing covariances from ``epochs`` (e.g., ``"scm"``, ``"oas"``,
         ``"lwf"``).
 
-    tmin, tmax : float | None, optional
-        Time range of interest (in seconds) used when extracting epoch data from
-        ``epochs`` (passed to :meth:`mne.Epochs.get_data`).
+    additional_values : dict | pandas.Series | None, optional
+        Additional columns to append to the returned dataframe (e.g., ``subject``,
+        ``session``, ``condition``, ``class``). Added via ``add_values_to_df``.
 
     Returns
     -------
@@ -73,32 +73,6 @@ def class_stability(
             Stability score in ``(0, 1]`` (higher means more stable / less dispersed).
 
         If ``additional_values`` is provided, additional columns are added.
-
-    Raises
-    ------
-    ValueError
-        If both ``epochs`` and ``covs`` are ``None``.
-    ValueError
-        If ``covs`` is not a 3D array.
-    ValueError
-        If the last two dimensions of ``covs`` are not equal (non-square matrices).
-    NotImplementedError
-        If ``centroid`` is a string other than ``"mean"``.
-
-    Notes
-    -----
-    Implementation details:
-
-    - Centroid computation (default)::
-
-        pyriemann.utils.mean.mean_covariance(covs, metric="riemann")
-
-    - Distance computation (non-squared)::
-
-        pyriemann.utils.distance.distance(M, Ci, metric="riemann", squared=False)
-
-    The resulting dispersion is the mean distance across matrices, and stability is
-    computed as ``1 / (1 + dispersion)``.
 
     References
     ----------

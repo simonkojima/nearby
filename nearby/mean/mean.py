@@ -63,6 +63,26 @@ def mean_frechet_p2(X, init="extrinsic", seed=42, return_all=False, **kwargs):
     Optimization is performed on the unit sphere :math:`S^{d-1}` using
     ``pymanopt`` with a steepest descent solver.
 
+    Let :math:`x_i \\in \\mathbb{R}^d` be input vectors normalized to unit norm
+    and :math:`\\mu \\in S^{d-1}` be the unknown mean direction. The Fréchet mean
+    (for :math:`p=2`) is defined as the minimizer of the sum of squared angular
+    distances:
+
+    .. math::
+
+        \\mu^* = \\arg\\min_{\\mu \\in S^{d-1}} \\sum_{i=1}^{N} d_{\\angle}(x_i, \\mu)^2
+
+    where the angular (geodesic) distance on the unit sphere is
+
+    .. math::
+
+        d_{\\angle}(x, \\mu) = \\arccos(x^{\\top}\\mu).
+
+    - The function computes the *intrinsic* mean on the sphere using the
+      geodesic distance.
+    - If vectors in ``X`` are not unit length, they are normalized internally.
+    - The objective is smooth everywhere except for antipodal configurations.
+
     Parameters
     ----------
     X : array_like, shape (n_samples, n_dims)

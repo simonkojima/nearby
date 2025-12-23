@@ -24,6 +24,7 @@ def within_trial_temporal(
         tmin=None,
         tmax=None,
         picks=None,
+        ddof=1,
         additional_values=None,
         average=True,
 ):
@@ -35,14 +36,14 @@ def within_trial_temporal(
     then optionally averages those values across epochs.
 
     - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
-      first restricted to the specified frequency band (``fmin``–``fmax``) and then
+      first restricted to the specified frequency band (``fmin``-``fmax``) and then
       averaged over frequency, yielding a single time course per epoch.
     - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
       directly (in microvolts).
 
     Parameters
     ----------
-    obj : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
+    data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
         The MNE object containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
         or epoched time-frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
 
@@ -70,6 +71,11 @@ def within_trial_temporal(
         Channels to include. Passed to :meth:`mne.Epochs.pick` / :meth:`mne.time_frequency.EpochsTFR.pick`.
         If ``None``, all channels are used.
 
+    ddof : int, default=1
+        Delta degrees of freedom passed to :func:`numpy.std`.
+        This parameter is forwarded directly to ``np.std(X, ddof=ddof)`` when
+        computing the standard deviation within each epoch.
+
     additional_values : dict | None, optional
         Additional columns to append to the returned dataframe. This is useful for
         adding metadata (e.g., ``subject``, ``session``, ``run``).
@@ -79,7 +85,7 @@ def within_trial_temporal(
         per-epoch within-trial temporal standard deviations across epochs.
 
         If ``False``, returns a per-channel JSON-encoded list containing one value
-        per epoch (order follows the epoch order in ``obj``).
+        per epoch (order follows the epoch order in ``data``).
 
     Returns
     -------
@@ -92,15 +98,6 @@ def within_trial_temporal(
             If ``average=True``, a scalar variability value.
             If ``average=False``, a JSON-encoded list of per-epoch variability values.
 
-    Notes
-    -----
-    For each channel and epoch, this function computes the standard deviation over
-    the time axis within the selected time window. For time–frequency input, the
-    time course is first reduced by averaging over the frequency axis within
-    ``[fmin, fmax]``.
-
-    This function is implemented only for :class:`mne.epochs.Epochs` and
-    :class:`mne.time_frequency.tfr.EpochsTFR`.
     """
     type_data = _get_data_type(data)
 
@@ -123,7 +120,7 @@ def within_trial_temporal(
     df_dict = {"channel": [], "within_trial_temporal": []}
     for ch in data.ch_names:
         if type_data == "EpochsTFR":
-            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
             # X.shape: n_epochs, n_channels, n_freqs, n_times
 
             X = np.squeeze(X)
@@ -138,7 +135,7 @@ def within_trial_temporal(
             X = np.squeeze(X)
             # X.shape: n_epochs, n_times
 
-        sd = np.std(X, axis=1)
+        sd = np.std(X, axis=1, ddof=ddof)
 
         if average:
             sd = sd.mean(0)
@@ -172,80 +169,85 @@ def between_trial_temporal(
         additional_values=None,
 ):
     """
-    Compute Between-Trial Temporal (BtwTrialTemp) Variability values.
+    Compute between-trial temporal variability using DTW distances to a mean.
 
-    This metric quantifies how much the time course varies across epochs.
-    For each channel, it first computes a representative (mean) time course across
-    epochs, then measures the dissimilarity (distance) between each epoch's time course and
-    this mean time course using Dynamic Time Warping (DTW). The final channel-level
-    score is the average DTW distance across epochs.
+    For each channel, this function forms a set of 1D time courses (one per epoch),
+    computes a representative time course (the mean or barycenter) across epochs, then
+    measures how much each epoch deviates from the mean using Dynamic Time
+    Warping (DTW). The channel-level score is the mean DTW distance across epochs.
 
-    - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
-      first restricted to the specified frequency band (``fmin``–``fmax``) and then
-      averaged over frequency, yielding a single time course per epoch.
-    - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
-      directly (in microvolts).
+    DTW is computed using the `tslearn.metrics.dtw <https://tslearn.readthedocs.io/en/stable/gen_modules/metrics/tslearn.metrics.dtw.html#tslearn.metrics.dtw>`_ module.
+
+    The input can be either time-domain epochs (:class:`mne.epochs.Epochs`) or
+    time–frequency power epochs (:class:`mne.time_frequency.tfr.EpochsTFR`):
+
+    - For :class:`~mne.time_frequency.tfr.EpochsTFR`, power is optionally cropped in
+      frequency (``fmin``–``fmax``), then averaged over frequency to obtain a single
+      time course per epoch.
+    - For :class:`~mne.epochs.Epochs`, the epoched signal is used directly (optionally
+      cropped in time; returned in microvolts).
 
     Parameters
     ----------
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        The MNE dataect containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
-        or epoched time–frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
+        Epoched MNE object. Only these two types are supported.
 
-    baseline : tuple of float | list of float | None, optional
-        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
-        is applied.
-
-        For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
-
-            data.copy().apply_baseline(baseline, mode="percent")
-
-        For :class:`mne.epochs.Epochs`, baseline correction is applied as::
-
-            data.copy().apply_baseline(baseline)
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1, 0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing variability.
+        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline is applied with
+        ``mode="percent"``.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest (in Hz). Only used when ``data`` is an
-        :class:`mne.time_frequency.tfr.EpochsTFR`. If ``None``, MNE defaults are used.
+        Frequency band of interest in Hz. Only used when ``data`` is an
+        :class:`~mne.time_frequency.tfr.EpochsTFR`. If either is ``None``, no
+        frequency cropping is applied.
 
     tmin, tmax : float | None, optional
-        Time window of interest (in seconds). If provided, data are cropped to
-        ``[tmin, tmax]`` before computing variability.
+        Time window of interest in seconds. If provided, data are cropped to
+        ``[tmin, tmax]`` prior to mean/DTW computations.
 
     picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Passed to :meth:`mne.Epochs.pick` / :meth:`mne.time_frequency.EpochsTFR.pick`.
-        If ``None``, all channels are used.
+        Channels to include. Passed to :meth:`mne.Epochs.pick` or
+        :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+
+    barycenter : {"dba", "dba_subgradient", "euclidean"}, default="dba"
+        Method used to compute the representative time course across epochs.
+
+        - ``"dba"``: DTW Barycenter Averaging (DBA). See `tslearn.barycenters.dtw_barycenter_averaging <https://tslearn.readthedocs.io/en/stable/gen_modules/barycenters/tslearn.barycenters.dtw_barycenter_averaging.html#tslearn.barycenters.dtw_barycenter_averaging>`_
+        - ``"dba_subgradient"``: DBA using a subgradient-based optimization. See `tslearn.barycenters.dtw_barycenter_averaging_subgradient <https://tslearn.readthedocs.io/en/stable/gen_modules/barycenters/tslearn.barycenters.dtw_barycenter_averaging_subgradient.html#tslearn.barycenters.dtw_barycenter_averaging_subgradient>`_
+        - ``"euclidean"``: Euclidean mean over epochs (no DTW alignment). See `tslearn.barycenters.euclidean_barycenter <https://tslearn.readthedocs.io/en/stable/gen_modules/barycenters/tslearn.barycenters.euclidean_barycenter.html#tslearn.barycenters.euclidean_barycenter>`_
+
+    params_barycenter : dict | None, optional
+        Parameters passed to the selected barycenter routine. If ``None``, an empty
+        dict is used.
+
+    params_dtw : dict | None, optional
+        Parameters passed to the DTW distance function used to compare each epoch to
+        the barycenter. If ``None``, an empty dict is used.
 
     average : bool, default=True
-        If ``True``, returns a single scalar per channel obtained by averaging
-        DTW distances across epochs.
+        Controls the output format for each channel.
 
-        If ``False``, returns a per-channel JSON-encoded list containing one DTW
-        distance per epoch (in the same epoch order as ``data``).
+        - If ``True``, return a scalar per channel (mean DTW distance across epochs).
+        - If ``False``, return a JSON-encoded list of per-epoch DTW distances (epoch
+          order matches ``data``).
 
     additional_values : dict | None, optional
-        Additional columns to append to the returned dataframe. This is useful for
-        adding metadata (e.g., ``subject``, ``session``, ``run``).
+        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
 
     Returns
     -------
     df : pandas.DataFrame
-        Output dataframe with one row per channel.
+        Dataframe with one row per channel.
 
-        - ``channel`` : str
+        ``channel`` : str
             Channel name.
-        - ``between_trial_temporal`` : float | str
-            If ``average=True``, a scalar variability value (mean DTW distance).
-            If ``average=False``, a JSON-encoded list of per-epoch DTW distances.
 
-    Notes
-    -----
-    The representative time course is computed as a simple point-wise mean over epochs.
-    DTW is then used to compare each epoch's time course to this mean while allowing
-    non-linear temporal alignment.
-
-    This function is implemented only for :class:`mne.epochs.Epochs` and
-    :class:`mne.time_frequency.tfr.EpochsTFR`.
+        ``between_trial_temporal`` : float | str
+            If ``average=True``, the mean DTW distance across epochs.
+            If ``average=False``, a JSON-encoded list of DTW distances with length
+            ``n_epochs``.
     """
 
     if params_barycenter is None:
@@ -279,7 +281,7 @@ def between_trial_temporal(
     df_dict = {"channel": [], "between_trial_temporal": []}
     for ch in data.ch_names:
         if type_data == "EpochsTFR":
-            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
+            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
             # X.shape: n_epochs, n_channels, n_freqs, n_times
 
             X = np.squeeze(X)
@@ -348,89 +350,97 @@ def between_trial_group_temporal(
         average=True,
 ):
     """
-    Compute Between-Trial-Group Temporal (BtwTrialGrpTemp) values.
+    Compute between-trial-group temporal variability using DTW distances to a centroid.
 
-    This metric quantifies how much the group-level time courses differ from
-    each other. Each element of ``data`` is assumed to represent a *trial-group
-    representative* time course (e.g., an averaged waveform such as an
-    :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`).
+    This metric quantifies how much *group-representative* time courses differ from
+    each other. Each element of ``data`` is expected to be a representative waveform
+    for a trial-group (e.g., an averaged response), and the variability is computed
+    by comparing each group waveform to a centroid using Dynamic Time Warping (DTW).
 
-    For each channel, the function builds (or accepts) a centroid time course and
-    computes the Dynamic Time Warping (DTW) distance between the centroid and each
-    group representative. The final channel-level score is the mean DTW distance
-    across groups (or a per-group list).
+    DTW is computed using the `tslearn.metrics.dtw <https://tslearn.readthedocs.io/en/stable/gen_modules/metrics/tslearn.metrics.dtw.html#tslearn.metrics.dtw>`_ module.
 
-    - If the inputs are :class:`mne.time_frequency.tfr.AverageTFR`, power values are
-      restricted to ``fmin``–``fmax`` and averaged over frequency to obtain a
-      single time course per group.
-    - If the inputs are :class:`mne.Evoked`, the evoked waveform is used directly
-      (in microvolts).
+    For each channel:
+
+    1. Convert each group object to a 1D time course (optionally cropped in time, and
+       for TFR optionally averaged within ``fmin``–``fmax``).
+    2. Define a centroid time course:
+       - If ``centroid`` is an MNE object, use it directly.
+       - If ``centroid="mean"``, compute a barycenter from the group time courses using ``barycenter``.
+    3. Compute DTW distance between each group time course and the centroid.
+    4. Aggregate distances across groups (mean or per-group list).
 
     Parameters
     ----------
     data : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
-        List of group-representative dataects. All entries must be the same type:
+        List of group-representative objects. All entries must have the same type:
         either :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`.
 
     centroid : {"mean"} | mne.Evoked | mne.time_frequency.tfr.AverageTFR, default="mean"
-        Definition of the centroid (reference) waveform used for DTW comparisons.
+        Definition of the centroid waveform used as DTW reference.
 
-        - ``"mean"``: the centroid is computed as the weighted average of ``data``
-          using :func:`mne.combine_evoked` (for :class:`mne.Evoked`) or
-          :func:`mne.time_frequency.combine_tfr` (for :class:`mne.time_frequency.tfr.AverageTFR`).
-        - If an dataect is provided, it is used directly as the centroid.
+        - ``"mean"``: compute a centroid time course from ``data`` using the method
+          specified by ``barycenter``.
+        - If an MNE object is provided, it is used directly as the centroid (after
+          optional picking and cropping).
 
-        The centroid must be of the same type as the elements of ``data``.
+        The centroid object must be of the same type as the elements of ``data``.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest (in Hz). Only used when inputs are
-        :class:`mne.time_frequency.tfr.AverageTFR`. If ``None``, MNE defaults are used.
+        Frequency band of interest in Hz. Only used when ``data`` contains
+        :class:`~mne.time_frequency.tfr.AverageTFR`. If either is ``None``, no
+        frequency cropping is applied for that bound.
 
     tmin, tmax : float | None, optional
-        Time window of interest (in seconds). If provided, data are cropped to
-        ``[tmin, tmax]`` before computing DTW distances.
+        Time window of interest in seconds. If provided, all objects are cropped to
+        ``[tmin, tmax]`` prior to centroid/DTW computations.
 
     picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Applied to both the centroid and all objects in ``objs``.
-        If ``None``, all channels are used.
+        Channels to include. Applied to the centroid (if provided as an object) and
+        to every element in ``data``. If ``None``, all channels are used.
+
+    barycenter : {"dba", "dba_subgradient", "euclidean"}, default="dba"
+        Method used to compute the centroid time course when ``centroid="mean"``.
+
+        - ``"dba"``: DTW Barycenter Averaging (DBA). See `tslearn.barycenters.dtw_barycenter_averaging <https://tslearn.readthedocs.io/en/stable/gen_modules/barycenters/tslearn.barycenters.dtw_barycenter_averaging.html#tslearn.barycenters.dtw_barycenter_averaging>`_
+        - ``"dba_subgradient"``: DBA using a subgradient-based optimization. See `tslearn.barycenters.dtw_barycenter_averaging_subgradient <https://tslearn.readthedocs.io/en/stable/gen_modules/barycenters/tslearn.barycenters.dtw_barycenter_averaging_subgradient.html#tslearn.barycenters.dtw_barycenter_averaging_subgradient>`_
+        - ``"euclidean"``: Euclidean mean over epochs (no DTW alignment). See `tslearn.barycenters.euclidean_barycenter <https://tslearn.readthedocs.io/en/stable/gen_modules/barycenters/tslearn.barycenters.euclidean_barycenter.html#tslearn.barycenters.euclidean_barycenter>`_
+
+    params_barycenter : dict | None, optional
+        Parameters passed to the selected barycenter routine. If ``None``, an empty
+        dict is used.
+
+    params_dtw : dict | None, optional
+        Parameters passed to the DTW distance function used to compare each group
+        time course to the centroid. If ``None``, an empty dict is used.
 
     additional_values : dict | None, optional
-        Additional columns to append to the returned dataframe. This is useful for
-        adding metadata (e.g., ``subject``, ``session``, ``run``, ``group_id``).
-
-    weights : str | array_like of float, default="nave"
-        Weights used when ``centroid="mean"``.
-        Passed to :func:`mne.combine_evoked` or :func:`mne.time_frequency.combine_tfr`.
-        The default ``"nave"`` uses the number of averaged epochs (when available).
+        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
 
     average : bool, default=True
-        If ``True``, returns a single scalar per channel obtained by averaging DTW
-        distances across groups.
+        Controls the output format for each channel.
 
-        If ``False``, returns a per-channel JSON-encoded list containing one DTW
-        distance per group (order follows ``objs``).
+        - If ``True``, return a scalar per channel (mean DTW distance across groups).
+        - If ``False``, return a JSON-encoded list of per-group DTW distances (group
+          order matches ``data``).
 
     Returns
     -------
     df : pandas.DataFrame
-        Output dataframe with one row per channel.
+        Dataframe with one row per channel.
 
-        - ``channel`` : str
+        ``channel`` : str
             Channel name.
-        - ``between_trial_group_temporal`` : float | str
-            If ``average=True``, a scalar variability value (mean DTW distance).
-            If ``average=False``, a JSON-encoded list of per-group DTW distances.
+
+        ``between_trial_group_temporal`` : float | str
+            If ``average=True``, the mean DTW distance across groups.
+            If ``average=False``, a JSON-encoded list of DTW distances with length
+            ``len(data)``.
 
     Notes
     -----
-    This function measures variability *between group-level averages* rather than
-    between single-trial epochs. DTW is used to compare time courses while allowing
-    non-linear temporal alignment.
-
-    This function is implemented only for lists of :class:`mne.Evoked` or lists of
-    :class:`mne.time_frequency.tfr.AverageTFR`.
+    - This function measures variability between *group-level representatives*
+      (e.g., averages) rather than between single-trial epochs.
     """
-
     if params_barycenter is None:
         params_barycenter = {}
     else:
