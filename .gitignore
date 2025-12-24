@@ -206,5 +206,17 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# docs
+docs/build/
+docs/source
+!docs/source/_static/
+!docs/source/conf.py
+!docs/source/documentation.rst
+!docs/source/install.rst
+!docs/source/index.rst
+
 # misc
+.idea/
+.vscode/
+_.github/
 auto_examples/
