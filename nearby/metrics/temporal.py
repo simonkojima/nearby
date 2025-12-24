@@ -15,18 +15,25 @@ from ..utils.core import (
     _get_data_type,
 )
 
+from ..utils.proc import (
+    _get_temporal_epochs_tfr,
+    _get_temporal_average_tfr,
+    _get_temporal_epochs,
+    _get_temporal_evoked,
+)
+
 
 def within_trial_temporal(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        ddof=1,
-        additional_values=None,
-        average=True,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    ddof=1,
+    additional_values=None,
+    average=True,
 ):
     """
     Compute Within-Trial Temporal (WiTrialTemp) Variability values.
@@ -155,18 +162,18 @@ def within_trial_temporal(
 
 
 def between_trial_temporal(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        barycenter="dba",
-        params_barycenter=None,
-        params_dtw=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    barycenter="dba",
+    params_barycenter=None,
+    params_dtw=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial temporal variability using DTW distances to a mean.
@@ -336,18 +343,18 @@ def between_trial_temporal(
 
 
 def between_trial_group_temporal(
-        data,
-        centroid="mean",
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        barycenter="dba",
-        params_barycenter=None,
-        params_dtw=None,
-        additional_values=None,
-        average=True,
+    data,
+    centroid="mean",
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    barycenter="dba",
+    params_barycenter=None,
+    params_dtw=None,
+    additional_values=None,
+    average=True,
 ):
     """
     Compute between-trial-group temporal variability using DTW distances to a centroid.
@@ -484,7 +491,7 @@ def between_trial_group_temporal(
 
         type_data_centroid = _get_data_type(data_centroid)
         if not (
-                (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
+            (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
         ):
             raise ValueError(
                 "centroid must be an instance of Evoked or AverageTFR objects."
