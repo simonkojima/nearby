@@ -13,22 +13,24 @@ from ..utils.core import (
     _get_data_type,
 )
 
+from ..utils.proc import _get_data, _apply_baseline
+
 
 def within_trial_spatial(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute within-trial spatial variability from time-resolved channel patterns.
@@ -128,16 +130,13 @@ def within_trial_spatial(
     """
     type_data = _get_data_type(data)
 
-    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
+    if type_data not in ["EpochsTFR", "Epochs"]:
         raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
     data = data.copy()
 
     if baseline is not None:
-        if type_data == "EpochsTFR":
-            data = data.apply_baseline(baseline, "percent")
-        elif type_data == "Epochs":
-            data = data.apply_baseline(baseline)
+        data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
@@ -156,21 +155,15 @@ def within_trial_spatial(
                 raise ValueError(f"Two or more windows must be specified. {windows=}")
 
         for window in windows:
-            if type_data == "EpochsTFR":
-                X = data.get_data(tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax)
-                # X.shape: n_epochs, n_channels, n_freqs, n_times
-
-                X = X.mean(2)
-                # X.shape: n_epochs, n_channels, n_times
-
-                X = X.mean(2)
-                # X.shape: n_epochs, n_channels
-            elif type_data == "Epochs":
-                X = data.get_data(tmin=window[0], tmax=window[1], units="uV")
-                # X.shape: n_epochs, n_channels, n_times
-
-                X = X.mean(2)
-                # X.shape: n_epochs, n_channels
+            X = _get_data(
+                data=data,
+                domain="spatial",
+                tmin=window[0],
+                tmax=window[1],
+                fmin=fmin,
+                fmax=fmax,
+                picks=None,
+            )
 
             X_list.append(X)
 
@@ -242,16 +235,16 @@ def within_trial_spatial(
 
 
 def between_trial_spatial(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial spatial variability from epoch-wise channel patterns.
@@ -322,35 +315,26 @@ def between_trial_spatial(
     """
     type_data = _get_data_type(data)
 
-    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
+    if type_data not in ["EpochsTFR", "Epochs"]:
         raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
     data = data.copy()
 
     if baseline is not None:
-        if type_data == "EpochsTFR":
-            data = data.apply_baseline(baseline, "percent")
-        elif type_data == "Epochs":
-            data = data.apply_baseline(baseline)
+        data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
 
-    if type_data == "EpochsTFR":
-        X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
-        # X.shape: n_epochs, n_channels, n_freqs, n_times
-
-        X = X.mean(2)
-        # X.shape: n_epochs, n_channels, n_times
-
-        X = X.mean(2)
-        # X.shape: n_epochs, n_channels
-    elif type_data == "Epochs":
-        X = data.get_data(tmin=tmin, tmax=tmax, units="uV")
-        # X.shape: n_epochs, n_channels, n_times
-
-        X = X.mean(2)
-        # X.shape: n_epochs, n_channels
+    X = _get_data(
+        data=data,
+        domain="spatial",
+        tmin=tmin,
+        tmax=tmax,
+        fmin=fmin,
+        fmax=fmax,
+        picks=None,
+    )
 
     n_epochs, _ = X.shape
 
@@ -389,16 +373,16 @@ def between_trial_spatial(
 
 
 def between_trial_group_spatial(
-        data,
-        centroid="mean",
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    centroid="mean",
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial-group spatial variability from group-representative patterns.
@@ -485,33 +469,9 @@ def between_trial_group_spatial(
       rather than between single-trial epochs.
     """
 
-    # ----- Define processing functions -----
-    def proc_tfr(tfr, tmin, tmax, fmin, fmax):
-        X = tfr.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
-        # X.shape: n_channels, n_freqs, n_times
-
-        X = X.mean(1)
-        # X.shape: n_channels, n_times
-
-        X = X.mean(1)
-        # X.shape: n_channels
-
-        return X
-
-    def proc_evoked(evoked, tmin, tmax):
-        X = evoked.get_data(tmin=tmin, tmax=tmax, units="uV")
-        # X.shape: n_channels, n_times
-
-        X = X.mean(1)
-        # X.shape: n_channels
-
-        return X
-
-    # ----- END: Define processing functions -----
-
     type_data = _get_data_type(data)
 
-    if not ((type_data == "list_Evoked") or (type_data == "list_AverageTFR")):
+    if type_data not in ["list_Evoked", "list_AverageTFR"]:
         raise ValueError(
             "data must be an instance of list of Evoked or AverageTFR objects."
         )
@@ -521,14 +481,18 @@ def between_trial_group_spatial(
         for n in range(len(data)):
             data[n] = data[n].pick(picks=picks)
 
-    if type_data == "list_AverageTFR":
-        X_list = [
-            proc_tfr(data[n], tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
-            for n in range(len(data))
-        ]
-
-    elif type_data == "list_Evoked":
-        X_list = [proc_evoked(data[n], tmin=tmin, tmax=tmax) for n in range(len(data))]
+    X_list = []
+    for n in range(len(data)):
+        x = _get_data(
+            data=data[n],
+            domain="spatial",
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            picks=None,
+        )
+        X_list.append(x)
 
     if isinstance(centroid, str):
         data_centroid = None
@@ -545,9 +509,7 @@ def between_trial_group_spatial(
     else:
         data_centroid = centroid
         type_data_centroid = _get_data_type(data_centroid)
-        if not (
-                (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
-        ):
+        if type_data_centroid not in ["Evoked", "AverageTFR"]:
             raise ValueError(
                 "centroid must be an instance of Evoked or AverageTFR objects."
             )
@@ -562,23 +524,26 @@ def between_trial_group_spatial(
         if picks is not None:
             data_centroid = data_centroid.pick(picks=picks)
 
-        if type_data == "list_AverageTFR":
-            X_centroid = proc_tfr(
-                data_centroid, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax
-            )
-        elif type_data == "list_Evoked":
-            X_centroid = proc_evoked(data_centroid, tmin=tmin, tmax=tmax)
+        X_centroid = _get_data(
+            data=data_centroid,
+            domain="spatial",
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            picks=None,
+        )
 
     distances = []
 
     if metric == "cosine":
         for X in X_list:
-            d = scipy.spatial.distance.cosine(X_centroid, X)
+            d = scipy.spatial.distance.cosine(X, X_centroid)
             distances.append(d)
 
     elif metric == "angle":
         for X in X_list:
-            d = distance_angle(X_centroid, X)
+            d = distance_angle(X, X_centroid)
             distances.append(d)
 
     else:

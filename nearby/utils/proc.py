@@ -33,7 +33,7 @@ def _get_frequency_epochs_tfr(data, tmin, tmax, fmin, fmax, picks):
 
 def _get_temporal_epochs(data, tmin, tmax, fmin, fmax, picks):
 
-    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks)
+    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks, units="uV")
     # X.shape: n_epochs, n_channels, n_times
 
     X = X.mean(axis=1)
@@ -43,7 +43,7 @@ def _get_temporal_epochs(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_spatial_epochs(data, tmin, tmax, fmin, fmax, picks):
-    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks)
+    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks, units="uV")
     # X.shape: n_epochs, n_channels, n_times
 
     X = X.mean(axis=2)
@@ -86,7 +86,7 @@ def _get_frequency_average_tfr(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_temporal_evoked(data, tmin, tmax, fmin, fmax, picks):
-    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks)
+    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks, units="uV")
     # X.shape: n_channels, n_times
 
     X = X.mean(axis=0)
@@ -97,7 +97,7 @@ def _get_temporal_evoked(data, tmin, tmax, fmin, fmax, picks):
 
 def _get_spatial_evoked(data, tmin, tmax, fmin, fmax, picks):
 
-    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks)
+    X = data.get_data(tmin=tmin, tmax=tmax, picks=picks, units="uV")
     # X.shape: n_channels, n_times
 
     X = X.mean(axis=1)
@@ -139,3 +139,17 @@ def _get_data(data, domain, tmin, tmax, fmin, fmax, picks):
         ) from e
 
     return func(data=data, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
+
+
+def _apply_baseline(data, baseline):
+    type_data = _get_data_type(data)
+
+    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
+        raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
+
+    if type_data == "EpochsTFR":
+        data = data.apply_baseline(baseline, "percent")
+    elif type_data == "Epochs":
+        data = data.apply_baseline(baseline)
+
+    return data
