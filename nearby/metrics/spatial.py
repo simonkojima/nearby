@@ -5,7 +5,7 @@ import pandas as pd
 import mne
 
 from ..distances import distance_angle
-from ..mean import mean_extrinsic, mean_frechet_p2
+from ..mean import extrinsic_mean, frechet_mean_angular
 
 from ..utils.core import (
     _add_values_to_df,
@@ -203,14 +203,14 @@ def within_trial_spatial(
 
         distances_trial = []
         if metric == "angle":
-            mean = mean_frechet_p2(X_trial, verbosity=0)
+            mean = frechet_mean_angular(X_trial, verbosity=0)
 
             for n in range(n_windows):
                 d = distance_angle(mean, X_trial[n, :])
                 distances_trial.append(d)
 
         elif metric == "cosine":
-            mean = mean_extrinsic(X_trial)
+            mean = extrinsic_mean(X_trial)
 
             for n in range(n_windows):
                 d = scipy.spatial.distance.cosine(mean, X_trial[n, :])
@@ -341,14 +341,14 @@ def between_trial_spatial(
     distances = []
 
     if metric == "cosine":
-        mean = mean_extrinsic(X)
+        mean = extrinsic_mean(X)
 
         for n in range(n_epochs):
             d = scipy.spatial.distance.cosine(mean, X[n, :])
             distances.append(d)
 
     elif metric == "angle":
-        mean = mean_frechet_p2(X, verbosity=0)
+        mean = frechet_mean_angular(X, verbosity=0)
 
         for n in range(n_epochs):
             d = distance_angle(mean, X[n, :])
@@ -499,9 +499,9 @@ def between_trial_group_spatial(
         match centroid:
             case "mean":
                 if metric == "angle":
-                    X_centroid = mean_frechet_p2(X_list, verbosity=0)
+                    X_centroid = frechet_mean_angular(X_list, verbosity=0)
                 elif metric == "cosine":
-                    X_centroid = mean_extrinsic(X_list)
+                    X_centroid = extrinsic_mean(X_list)
                 else:
                     raise ValueError("metrics must be 'angle' or 'cosine'")
             case _:

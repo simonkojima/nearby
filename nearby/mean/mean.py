@@ -3,7 +3,7 @@ import autograd.numpy as anp
 import pymanopt
 
 
-def mean_extrinsic(X):
+def extrinsic_mean(X):
     """
     Compute the **extrinsic mean direction** of a set of vectors.
 
@@ -55,7 +55,7 @@ def get_random_unit_vec(d, rng=None):
     return v / n
 
 
-def mean_frechet_p2(X, init="extrinsic", seed=42, return_all=False, **kwargs):
+def frechet_mean_angular(X, init="extrinsic", seed=42, return_all=False, **kwargs):
     """
     Compute the Fréchet mean on the unit hypersphere with the :math:`p = 2`
     squared angular distance (intrinsic mean).
@@ -126,7 +126,7 @@ def mean_frechet_p2(X, init="extrinsic", seed=42, return_all=False, **kwargs):
     n_vecs, n_dim = X.shape
 
     if init == "extrinsic":
-        initial_point = mean_extrinsic(X)
+        initial_point = extrinsic_mean(X)
     elif init == "random":
         rng = np.random.default_rng(seed)
         initial_point = get_random_unit_vec(d=n_dim, rng=rng)
