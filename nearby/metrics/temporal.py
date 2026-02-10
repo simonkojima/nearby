@@ -10,8 +10,11 @@ from tslearn.barycenters import (
     dtw_barycenter_averaging_subgradient,
 )
 
+from ..distances import distance_squared_euclidean
+
 from ..utils.core import (
     _add_values_to_df,
+    _auto_windows,
     _get_data_type,
 )
 
@@ -21,12 +24,15 @@ def within_trial_temporal(
         baseline=None,
         fmin=None,
         fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
         tmin=None,
         tmax=None,
         picks=None,
-        ddof=1,
-        additional_values=None,
         average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Temporal (WiTrialTemp) Variability values.
@@ -102,9 +108,7 @@ def within_trial_temporal(
     type_data = _get_data_type(data)
 
     if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
-        raise ValueError(
-            "within_trial_temporal is only implemented for EpochsTFR or Epochs objects."
-        )
+        raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
     data = data.copy()
 
@@ -117,34 +121,111 @@ def within_trial_temporal(
     if picks is not None:
         data = data.pick(picks=picks)
 
+    X_dict = {}
+    if mode == "windows":
+        if windows is None:
+            windows = _auto_windows(
+                size=auto_window_size,
+                step=auto_window_step,
+                tmin=tmin,
+                tmax=tmax,
+            )
+
+        for ch in data.ch_names:
+            X_dict[ch] = []
+            for window in windows:
+                if type_data == "EpochsTFR":
+                    X = data.get_data(
+                        tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax, picks=ch
+                    )
+                    # X.shape: n_epochs, n_channels, n_freqs, n_times
+
+                    X = X.squeeze()
+                    # X.shape: n_epochs, n_freqs, n_times
+
+                    X = X.mean(1)
+                    # X.shape: n_epochs, n_times
+
+                    X = X.mean(1)
+                    # X.shape: n_epochs
+
+                    X_dict[ch].append(X)
+
+                elif type_data == "Epochs":
+                    X = data.get_data(
+                        tmin=window[0], tmax=window[1], units="uV", picks=ch
+                    )
+                    # X.shape: n_epochs, n_channels, n_times
+
+                    X = X.squeeze()
+                    # X.shape: n_epochs, n_times
+
+                    X = X.mean(1)
+                    # X.shape: n_epochs
+
+                    X_dict[ch].append(X)
+
+            X_dict[ch] = np.array(X_dict[ch])
+            # X.shape: n_windows, n_epochs
+
+            X_dict[ch] = X_dict[ch].transpose(1, 0)
+            # X.shape: n_epochs, n_windows
+
+    elif mode == "all_samples":
+        for ch in data.ch_names:
+            X_dict[ch] = []
+            if type_data == "EpochsTFR":
+                X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+                # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+                X = X.squeeze()
+                # X.shape: n_epochs, n_freqs, n_times
+
+                X = X.mean(1)
+                # X.shape: n_epochs, n_times
+
+            elif type_data == "Epochs":
+
+                X = data.get_data(tmin=tmin, tmax=tmax, units="uV", picks=ch)
+                # X.shape: n_epochs, n_channels, n_times
+
+                X = X.squeeze()
+                # X.shape: n_epochs, n_times
+
+            # In all_samples mode, n_times is equal to the number of windows
+            # X.shape: n_epochs, n_windows
+            X_dict[ch] = X
+
+    else:
+        raise ValueError("mode must be 'windows' or 'all_samples'")
+
     df_dict = {"channel": [], "within_trial_temporal": []}
     for ch in data.ch_names:
-        if type_data == "EpochsTFR":
-            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-            # X.shape: n_epochs, n_channels, n_freqs, n_times
+        n_epochs, n_windows = X_dict[ch].shape
 
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_freqs, n_times
+        dispersion = []
+        for idx_trial in range(n_epochs):
+            X_trial = X_dict[ch][idx_trial, :].squeeze()
+            # X_trial.shape: n_windows
 
-            X = X.mean(1)
-            # X.shape: n_epochs, n_times
-        elif type_data == "Epochs":
-            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # X.shape: n_epochs, n_channels, n_times
+            mean = X_trial.mean(0)
 
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_times
+            distances_trial = []
+            for n in range(n_windows):
+                d = distance_squared_euclidean(X_trial[n], mean)
+                distances_trial.append(d)
 
-        sd = np.std(X, axis=1, ddof=ddof)
+            dispersion_within_trial = np.mean(distances_trial)
+
+            dispersion.append(dispersion_within_trial)
 
         if average:
-            sd = sd.mean(0)
+            dispersion = np.mean(dispersion)
         else:
-            sd = sd.tolist()
-            sd = json.dumps(sd)
+            dispersion = json.dumps(dispersion)
 
         df_dict["channel"].append(ch)
-        df_dict["within_trial_temporal"].append(sd)
+        df_dict["within_trial_temporal"].append(dispersion)
 
     df = pd.DataFrame(df_dict)
 
