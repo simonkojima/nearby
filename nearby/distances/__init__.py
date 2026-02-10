@@ -1,3 +1,3 @@
-from .distances import distance_angle
+from .distances import distance_angle, distance_squared_euclidean
 
-__all__ = ["distance_angle"]
+__all__ = ["distance_angle", "distance_squared_euclidean"]
