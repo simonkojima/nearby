@@ -90,6 +90,8 @@ wi_trial_temp_left = nearby.metrics.within_trial_temporal(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    auto_window_size=1,
+    auto_window_step=1,
     picks="C4",
 )
 wi_trial_temp_right = nearby.metrics.within_trial_temporal(
@@ -98,6 +100,8 @@ wi_trial_temp_right = nearby.metrics.within_trial_temporal(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    auto_window_size=1,
+    auto_window_step=1,
     picks="C3",
 )
 wi_trial_temp = pd.concat([wi_trial_temp_left, wi_trial_temp_right])
