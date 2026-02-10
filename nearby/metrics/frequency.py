@@ -124,7 +124,7 @@ def within_trial_frequency(
       time samples (``mode="all_samples"``).
     - The function operates on a copy of the input object (``data.copy()``) and does
       not modify ``data`` in place.
-    - This metric captures *within-trial spectral variability*, complementary to
+    - This metric captures *within-trial frequency variability*, complementary to
       spatial and temporal variability metrics.
     """
     type_data = _get_data_type(data)
