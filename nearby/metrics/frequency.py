@@ -155,6 +155,9 @@ def within_trial_frequency(
                 tmax=tmax,
             )
 
+            if (windows.ndim != 2) or (windows.shape[0] == 1):
+                raise ValueError(f"Two or more windows must be specified. {windows=}")
+
         for ch in data.ch_names:
             X_dict[ch] = []
             for window in windows:
