@@ -10,8 +10,11 @@ from tslearn.barycenters import (
     dtw_barycenter_averaging_subgradient,
 )
 
+from ..distances import distance_squared_euclidean
+
 from ..utils.core import (
     _add_values_to_df,
+    _auto_windows,
     _get_data_type,
 )
 
@@ -19,94 +22,119 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_temporal(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    ddof=1,
-    additional_values=None,
-    average=True,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        windows=None,
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute Within-Trial Temporal (WiTrialTemp) Variability values.
 
-    This metric quantifies how much the time course varies within each epoch.
-    For each channel, it computes the standard deviation over time within an epoch,
-    then optionally averages those values across epochs.
+    This metric quantifies how much the *temporal pattern over time* varies within each
+    epoch. For each channel and epoch, the signal is converted into a 1D sequence
+    across time (one value per time window or one per time sample). A reference value
+    is estimated for that epoch (the mean across windows/samples), and the dispersion
+    of values around the reference is computed. The final output is the mean dispersion
+    across epochs, or a per-epoch list.
 
-    - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, power values are
-      first restricted to the specified frequency band (``fmin``-``fmax``) and then
-      averaged over frequency, yielding a single time course per epoch.
-    - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is used
-      directly (in microvolts).
+    The input can be time-domain epochs (:class:`mne.epochs.Epochs`) or time–frequency
+    epochs (:class:`mne.time_frequency.tfr.EpochsTFR`). For TFR input, values are
+    optionally restricted to ``fmin``–``fmax`` and averaged over frequency before
+    forming temporal sequences. Variability is computed independently for each channel.
 
     Parameters
     ----------
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        The MNE object containing either epoched time-domain data (:class:`mne.epochs.Epochs`)
-        or epoched time-frequency data (:class:`mne.time_frequency.tfr.EpochsTFR`).
+        Epoched MNE object. Only these two types are supported.
 
-    baseline : tuple of float | list of float | None, optional
-        Time interval (in seconds) used for baseline correction. If ``None``, no baseline
-        is applied.
-
-        For :class:`mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied as::
-
-            data.copy().apply_baseline(baseline, mode="percent")
-
-        For :class:`mne.epochs.Epochs`, baseline correction is applied as::
-
-            data.copy().apply_baseline(baseline)
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1, 0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing variability.
+        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline is applied with
+        ``mode="percent"``.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest (in Hz). Only used when ``obj`` is an
-        :class:`mne.time_frequency.tfr.EpochsTFR`. If ``None``, MNE defaults are used.
+        Frequency band of interest in Hz. Only used when ``data`` is an
+        :class:`~mne.time_frequency.tfr.EpochsTFR`. If provided, TFR values are cropped
+        in frequency to ``[fmin, fmax]`` and then averaged over frequency to yield a
+        single time course per epoch and channel.
+
+    mode : {"windows", "all_samples"}, default="windows"
+        How to represent within-epoch temporal evolution.
+
+        - ``"windows"``: average data within time windows; each window yields one
+          scalar per epoch and channel.
+        - ``"all_samples"``: use each time sample as one scalar (no window averaging).
+          For TFR input, frequency is still averaged first.
+
+    windows : array_like of shape (n_windows, 2) | None, optional
+        Explicit time windows in seconds: ``[[tmin_0, tmax_0], ..., [tmin_k, tmax_k]]``.
+        Only used when ``mode="windows"``. If ``None``, windows are generated
+        automatically using ``auto_window_size`` and ``auto_window_step`` between
+        ``tmin`` and ``tmax``.
+
+    auto_window_size : float, default=0.1
+        Window length in seconds used when ``windows=None`` and ``mode="windows"``.
+
+    auto_window_step : float, default=0.1
+        Step in seconds used when ``windows=None`` and ``mode="windows"``.
 
     tmin, tmax : float | None, optional
-        Time window of interest (in seconds). If provided, data are cropped to
-        ``[tmin, tmax]`` before computing variability.
+        Time window of interest in seconds. If provided, data are cropped to
+        ``[tmin, tmax]`` when extracting window averages (``mode="windows"``) and also
+        when extracting sample-wise values (``mode="all_samples"``).
 
     picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Passed to :meth:`mne.Epochs.pick` / :meth:`mne.time_frequency.EpochsTFR.pick`.
-        If ``None``, all channels are used.
-
-    ddof : int, default=1
-        Delta degrees of freedom passed to :func:`numpy.std`.
-        This parameter is forwarded directly to ``np.std(X, ddof=ddof)`` when
-        computing the standard deviation within each epoch.
-
-    additional_values : dict | None, optional
-        Additional columns to append to the returned dataframe. This is useful for
-        adding metadata (e.g., ``subject``, ``session``, ``run``).
+        Channels to include. Passed to :meth:`mne.Epochs.pick` /
+        :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
 
     average : bool, default=True
-        If ``True``, returns a single scalar per channel obtained by averaging the
-        per-epoch within-trial temporal standard deviations across epochs.
+        Controls the output format for each channel.
 
-        If ``False``, returns a per-channel JSON-encoded list containing one value
-        per epoch (order follows the epoch order in ``data``).
+        - If ``True``, return a single scalar (mean dispersion across epochs).
+        - If ``False``, return a JSON-encoded list of per-epoch dispersion values
+          (epoch order matches ``data``).
+
+    additional_values : dict | None, optional
+        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
 
     Returns
     -------
     df : pandas.DataFrame
-        Output dataframe with one row per channel.
+        Dataframe with one row per channel.
 
-        - ``channel`` : str
+        ``channel`` : str
             Channel name.
-        - ``within_trial_temporal`` : float | str
-            If ``average=True``, a scalar variability value.
-            If ``average=False``, a JSON-encoded list of per-epoch variability values.
+
+        ``within_trial_temporal`` : float | str
+            If ``average=True``, the mean dispersion across epochs.
+            If ``average=False``, a JSON-encoded list of dispersions with length
+            ``n_epochs``.
+
+    Notes
+    -----
+    - For each channel and epoch, a temporal sequence is constructed either by
+      averaging within time windows (``mode="windows"``) or by using individual
+      time samples (``mode="all_samples"``).
+    - The function operates on a copy of the input object (``data.copy()``) and does
+      not modify ``data`` in place.
+    - This metric captures *within-trial temporal variability*, complementary to
+      spatial and frequency variability metrics.
 
     """
     type_data = _get_data_type(data)
 
     if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
-        raise ValueError(
-            "within_trial_temporal is only implemented for EpochsTFR or Epochs objects."
-        )
+        raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
     data = data.copy()
 
@@ -116,29 +144,114 @@ def within_trial_temporal(
     if picks is not None:
         data = data.pick(picks=picks)
 
+    X_dict = {}
+    if mode == "windows":
+        if windows is None:
+            windows = _auto_windows(
+                size=auto_window_size,
+                step=auto_window_step,
+                tmin=tmin,
+                tmax=tmax,
+            )
+
+            if (windows.ndim != 2) or (windows.shape[0] == 1):
+                raise ValueError(f"Two or more windows must be specified. {windows=}")
+
+        for ch in data.ch_names:
+            X_dict[ch] = []
+            for window in windows:
+                if type_data == "EpochsTFR":
+                    X = data.get_data(
+                        tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax, picks=ch
+                    )
+                    # X.shape: n_epochs, n_channels, n_freqs, n_times
+
+                    X = X.squeeze()
+                    # X.shape: n_epochs, n_freqs, n_times
+
+                    X = X.mean(1)
+                    # X.shape: n_epochs, n_times
+
+                    X = X.mean(1)
+                    # X.shape: n_epochs
+
+                    X_dict[ch].append(X)
+
+                elif type_data == "Epochs":
+                    X = data.get_data(
+                        tmin=window[0], tmax=window[1], units="uV", picks=ch
+                    )
+                    # X.shape: n_epochs, n_channels, n_times
+
+                    X = X.squeeze()
+                    # X.shape: n_epochs, n_times
+
+                    X = X.mean(1)
+                    # X.shape: n_epochs
+
+                    X_dict[ch].append(X)
+
+            X_dict[ch] = np.array(X_dict[ch])
+            # X.shape: n_windows, n_epochs
+
+            X_dict[ch] = X_dict[ch].transpose(1, 0)
+            # X.shape: n_epochs, n_windows
+
+    elif mode == "all_samples":
+        for ch in data.ch_names:
+            X_dict[ch] = []
+            if type_data == "EpochsTFR":
+                X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
+                # data.shape: n_epochs, n_channels, n_freqs, n_times
+
+                X = X.squeeze()
+                # X.shape: n_epochs, n_freqs, n_times
+
+                X = X.mean(1)
+                # X.shape: n_epochs, n_times
+
+            elif type_data == "Epochs":
+
+                X = data.get_data(tmin=tmin, tmax=tmax, units="uV", picks=ch)
+                # X.shape: n_epochs, n_channels, n_times
+
+                X = X.squeeze()
+                # X.shape: n_epochs, n_times
+
+            # In all_samples mode, n_times is equal to the number of windows
+            # X.shape: n_epochs, n_windows
+            X_dict[ch] = X
+
+    else:
+        raise ValueError("mode must be 'windows' or 'all_samples'")
+
     df_dict = {"channel": [], "within_trial_temporal": []}
     for ch in data.ch_names:
+        n_epochs, n_windows = X_dict[ch].shape
 
-        X = _get_data(
-            data=data,
-            domain="temporal",
-            tmin=tmin,
-            tmax=tmax,
-            fmin=fmin,
-            fmax=fmax,
-            picks=ch,
-        )
+        dispersion = []
+        for idx_trial in range(n_epochs):
+            X_trial = X_dict[ch][idx_trial, :].squeeze()
+            # X_trial.shape: n_windows
 
-        sd = np.std(X, axis=1, ddof=ddof)
+            mean = X_trial.mean(0)
+
+            distances_trial = []
+            for n in range(n_windows):
+                d = distance_squared_euclidean(X_trial[n], mean)
+                distances_trial.append(d)
+
+            dispersion_within_trial = np.mean(distances_trial)
+
+            dispersion.append(dispersion_within_trial)
 
         if average:
-            sd = sd.mean(0)
+            dispersion = np.mean(dispersion)
         else:
-            sd = sd.tolist()
-            sd = json.dumps(sd)
+            dispersion = json.dumps(dispersion)
 
         df_dict["channel"].append(ch)
-        df_dict["within_trial_temporal"].append(sd)
+        df_dict["within_trial_temporal"].append(dispersion)
 
     df = pd.DataFrame(df_dict)
 

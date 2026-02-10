@@ -1,6 +1,10 @@
 import numpy as np
 
 
+def distance_squared_euclidean(w1, w2):
+    return np.sum((w1 - w2) ** 2)
+
+
 def distance_angle(w1, w2):
     """
     Compute the angle (in radians) between two vectors.

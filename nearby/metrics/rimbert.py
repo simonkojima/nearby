@@ -5,15 +5,15 @@ from ..utils.core import _get_data_type, _add_values_to_df
 
 
 def mean_erds(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute mean ERD/S values for each channel.
@@ -152,15 +152,15 @@ def mean_erds(
 
 
 def standard_deviation_erds(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        ddof=1,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    ddof=1,
+    additional_values=None,
 ):
     """
         Compute the standard deviation of mean ERD/S values across trials.

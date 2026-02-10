@@ -126,7 +126,7 @@ def within_trial_frequency(
       time samples (``mode="all_samples"``).
     - The function operates on a copy of the input object (``data.copy()``) and does
       not modify ``data`` in place.
-    - This metric captures *within-trial spectral variability*, complementary to
+    - This metric captures *within-trial frequency variability*, complementary to
       spatial and temporal variability metrics.
     """
     type_data = _get_data_type(data)
@@ -157,6 +157,9 @@ def within_trial_frequency(
                 tmax=tmax,
             )
 
+            if (windows.ndim != 2) or (windows.shape[0] == 1):
+                raise ValueError(f"Two or more windows must be specified. {windows=}")
+
         for ch in data.ch_names:
             X_dict[ch] = []
             for window in windows:
@@ -181,7 +184,7 @@ def within_trial_frequency(
 
     elif mode == "all_samples":
         for ch in data.ch_names:
-            X = data.get_data(fmin=fmin, fmax=fmax, picks=ch)
+            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
             # data.shape: n_epochs, n_channels, n_freqs, n_times
 
             X = X.mean(axis=1)
