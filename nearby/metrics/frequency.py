@@ -179,7 +179,7 @@ def within_trial_frequency(
 
     elif mode == "all_samples":
         for ch in data.ch_names:
-            X = data.get_data(fmin=fmin, fmax=fmax, picks=ch)
+            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
             # data.shape: n_epochs, n_channels, n_freqs, n_times
 
             X = X.squeeze()
