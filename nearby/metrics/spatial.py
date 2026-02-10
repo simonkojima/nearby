@@ -15,20 +15,20 @@ from ..utils.core import (
 
 
 def within_trial_spatial(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute within-trial spatial variability from time-resolved channel patterns.
@@ -242,16 +242,16 @@ def within_trial_spatial(
 
 
 def between_trial_spatial(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial spatial variability from epoch-wise channel patterns.
@@ -389,16 +389,16 @@ def between_trial_spatial(
 
 
 def between_trial_group_spatial(
-        data,
-        centroid="mean",
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    centroid="mean",
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial-group spatial variability from group-representative patterns.
@@ -546,7 +546,7 @@ def between_trial_group_spatial(
         data_centroid = centroid
         type_data_centroid = _get_data_type(data_centroid)
         if not (
-                (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
+            (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
         ):
             raise ValueError(
                 "centroid must be an instance of Evoked or AverageTFR objects."
