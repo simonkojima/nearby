@@ -68,5 +68,5 @@ Mean
    :caption: Mean
    :recursive:
    
-   nearby.mean.mean_extrinsic
-   nearby.mean.mean_frechet_p2
+   nearby.mean.extrinsic_mean
+   nearby.mean.frechet_mean_angular

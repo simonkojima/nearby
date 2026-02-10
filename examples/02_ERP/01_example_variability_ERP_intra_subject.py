@@ -98,6 +98,7 @@ wi_trial_spat = nearby.metrics.within_trial_spatial(
     tmax=tmax,
     auto_window_size=0.05,
     auto_window_step=0.05,
+    metric="angle",
 )
 
 results["WiTrialSpat"] = wi_trial_spat["within_trial_spatial"].mean()
@@ -113,6 +114,7 @@ wi_trial_freq = nearby.metrics.within_trial_frequency(
     tmax=tmax,
     auto_window_size=0.05,
     auto_window_step=0.05,
+    metric="angle",
     picks=["Cz", "CPz", "Pz"],
 )
 
@@ -145,6 +147,7 @@ btw_trial_spat = nearby.metrics.between_trial_spatial(
     epochs["Target"],
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 
 results["BtwTrialSpat"] = btw_trial_spat["between_trial_spatial"].mean()
@@ -158,6 +161,7 @@ btw_trial_freq = nearby.metrics.between_trial_frequency(
     tfrs["Target"],
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
     picks=["Cz", "CPz", "Pz"],
 )
 

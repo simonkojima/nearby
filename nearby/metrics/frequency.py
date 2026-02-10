@@ -5,7 +5,7 @@ import scipy
 import mne
 
 from ..distances import distance_angle
-from ..mean import mean_frechet_p2, mean_extrinsic
+from ..mean import extrinsic_mean, frechet_mean_angular
 
 from ..utils.core import (
     _add_values_to_df,
@@ -13,22 +13,24 @@ from ..utils.core import (
     _get_data_type,
 )
 
+from ..utils.proc import _get_data, _apply_baseline
+
 
 def within_trial_frequency(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        windows=None,
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        tmin=None,
-        tmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    windows=None,
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    tmin=None,
+    tmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute within-trial frequency variability from time-resolved spectral patterns.
@@ -135,12 +137,12 @@ def within_trial_frequency(
     data = data.copy()
 
     if baseline is not None:
-        data = data.apply_baseline(baseline, "percent")
+        data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
 
-    if not ((metric == "angle") or (metric == "cosine")):
+    if metric not in ["angle", "cosine"]:
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
     df_dict = {"channel": [], "within_trial_frequency": []}
@@ -161,16 +163,16 @@ def within_trial_frequency(
         for ch in data.ch_names:
             X_dict[ch] = []
             for window in windows:
-                X = data.get_data(
-                    tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax, picks=ch
+
+                X = _get_data(
+                    data=data,
+                    domain="frequency",
+                    tmin=window[0],
+                    tmax=window[1],
+                    fmin=fmin,
+                    fmax=fmax,
+                    picks=ch,
                 )
-                # X.shape: n_epochs, n_channels, n_freqs, n_times
-
-                X = X.squeeze()
-                # X.shape: n_epochs, n_freqs, n_times
-
-                X = X.mean(2)
-                # X.shape: n_epochs, n_freqs
 
                 X_dict[ch].append(X)
 
@@ -185,7 +187,7 @@ def within_trial_frequency(
             X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
             # data.shape: n_epochs, n_channels, n_freqs, n_times
 
-            X = X.squeeze()
+            X = X.mean(axis=1)
             # X.shape: n_epochs, n_freqs, n_times
             # In all_samples mode, n_times is equal to the number of windows
             # X.shape: n_epochs, n_freqs, n_windows
@@ -207,7 +209,7 @@ def within_trial_frequency(
             # X_trial.shape: n_windows, n_freqs
 
             if metric == "angle":
-                mean = mean_frechet_p2(X_trial, verbosity=0)
+                mean = frechet_mean_angular(X_trial, verbosity=0)
 
                 distances_trial = []
                 for n in range(n_windows):
@@ -215,7 +217,7 @@ def within_trial_frequency(
                     distances_trial.append(d)
 
             elif metric == "cosine":
-                mean = mean_extrinsic(X_trial)
+                mean = extrinsic_mean(X_trial)
 
                 distances_trial = []
                 for n in range(n_windows):
@@ -243,16 +245,16 @@ def within_trial_frequency(
 
 
 def between_trial_frequency(
-        data,
-        baseline=None,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial frequency variability from epoch-wise spectra.
@@ -338,38 +340,39 @@ def between_trial_frequency(
     data = data.copy()
 
     if baseline is not None:
-        data = data.apply_baseline(baseline, "percent")
+        data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
 
-    if not ((metric == "angle") or (metric == "cosine")):
+    if metric not in ["angle", "cosine"]:
         raise ValueError("metrics must be 'angle' or 'cosine'")
 
     df_dict = {"channel": [], "between_trial_frequency": []}
 
     for ch in data.ch_names:
-        X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-        # X.shape: n_epochs, n_channels, n_freqs, n_times
-
-        X = X.squeeze()
-        # X.shape: n_epochs, n_freqs, n_times
-
-        X = X.mean(2)
-        # X.shape: n_epochs, n_freqs
+        X = _get_data(
+            data=data,
+            domain="frequency",
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            picks=ch,
+        )
 
         n_epochs, _ = X.shape
 
         distances = []
 
         if metric == "angle":
-            mean = mean_frechet_p2(X, verbosity=0)
+            mean = frechet_mean_angular(X, verbosity=0)
 
             for n in range(n_epochs):
                 d = distance_angle(mean, X[n, :])
                 distances.append(d)
         elif metric == "cosine":
-            mean = mean_extrinsic(X)
+            mean = extrinsic_mean(X)
 
             for n in range(n_epochs):
                 d = scipy.spatial.distance.cosine(mean, X[n, :])
@@ -396,16 +399,16 @@ def between_trial_frequency(
 
 
 def between_trial_group_frequency(
-        data,
-        centroid="mean",
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        metric="angle",
-        picks=None,
-        average=True,
-        additional_values=None,
+    data,
+    centroid="mean",
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    metric="angle",
+    picks=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial-group frequency variability from group-representative spectra.
@@ -494,18 +497,6 @@ def between_trial_group_frequency(
       modify inputs in place.
     """
 
-    def proc(data, tmin, tmax, fmin, fmax, ch):
-        X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-        # X.shape: n_channels, n_freqs, n_times
-
-        X = X.squeeze()
-        # X.shape: n_freqs, n_times
-
-        X = X.mean(1)
-        # X.shape: n_freqs
-
-        return X
-
     type_data = _get_data_type(data)
     if not (type_data == "list_AverageTFR"):
         raise ValueError("data must be an instance of list of AverageTFR objects.")
@@ -540,20 +531,34 @@ def between_trial_group_frequency(
 
     for ch in data[0].ch_names:
 
-        X_list = [
-            proc(data[n], tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch)
-            for n in range(len(data))
-        ]
+        X_list = []
+        for n in range(len(data)):
+            x = _get_data(
+                data=data[n],
+                domain="frequency",
+                tmin=tmin,
+                tmax=tmax,
+                fmin=fmin,
+                fmax=fmax,
+                picks=ch,
+            )
+            X_list.append(x)
 
         if data_centroid is not None:
-            X_centroid = proc(
-                data_centroid, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch
+            X_centroid = _get_data(
+                data=data_centroid,
+                domain="frequency",
+                tmin=tmin,
+                tmax=tmax,
+                fmin=fmin,
+                fmax=fmax,
+                picks=ch,
             )
         else:
             if metric == "angle":
-                X_centroid = mean_frechet_p2(X_list, verbosity=0)
+                X_centroid = frechet_mean_angular(X_list, verbosity=0)
             elif metric == "cosine":
-                X_centroid = mean_extrinsic(X_list)
+                X_centroid = extrinsic_mean(X_list)
 
         distances = []
 

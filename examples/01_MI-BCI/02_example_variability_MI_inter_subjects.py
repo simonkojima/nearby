@@ -141,19 +141,11 @@ print(f"BtwTrialGrpTemp: {results['BtwTrialGrpTemp']:.3f}")
 # ---------------------------------------------------------
 
 btw_trial_grp_spat_left = nearby.metrics.between_trial_group_spatial(
-    tfrs_left,
-    fmin=fmin,
-    fmax=fmax,
-    tmin=tmin,
-    tmax=tmax,
+    tfrs_left, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metric="angle"
 )
 
 btw_trial_grp_spat_right = nearby.metrics.between_trial_group_spatial(
-    tfrs_right,
-    fmin=fmin,
-    fmax=fmax,
-    tmin=tmin,
-    tmax=tmax,
+    tfrs_right, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metric="angle"
 )
 
 btw_trial_grp_spat = pd.concat([btw_trial_grp_spat_left, btw_trial_grp_spat_right])
@@ -170,6 +162,7 @@ btw_trial_grp_freq_left = nearby.metrics.between_trial_group_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
     picks="C4",
 )
 
@@ -179,6 +172,7 @@ btw_trial_grp_freq_right = nearby.metrics.between_trial_group_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
     picks="C3",
 )
 
@@ -236,6 +230,7 @@ btw_trial_grp_spat_tr_left = nearby.metrics.between_trial_group_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 
 btw_trial_grp_spat_tr_right = nearby.metrics.between_trial_group_spatial(
@@ -245,6 +240,7 @@ btw_trial_grp_spat_tr_right = nearby.metrics.between_trial_group_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 
 btw_trial_grp_spat_tr = pd.concat(
@@ -266,6 +262,7 @@ btw_trial_grp_freq_tr_left = nearby.metrics.between_trial_group_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 
 btw_trial_grp_freq_tr_right = nearby.metrics.between_trial_group_frequency(
@@ -275,6 +272,7 @@ btw_trial_grp_freq_tr_right = nearby.metrics.between_trial_group_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 
 btw_trial_grp_freq_tr = pd.concat(

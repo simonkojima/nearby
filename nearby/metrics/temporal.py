@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import mne
 
-from tslearn.metrics import dtw, soft_dtw, gamma_soft_dtw
+from tslearn.metrics import dtw
 from tslearn.barycenters import (
     euclidean_barycenter,
     dtw_barycenter_averaging,
@@ -17,6 +17,8 @@ from ..utils.core import (
     _auto_windows,
     _get_data_type,
 )
+
+from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_temporal(
@@ -137,10 +139,7 @@ def within_trial_temporal(
     data = data.copy()
 
     if baseline is not None:
-        if type_data == "EpochsTFR":
-            data = data.apply_baseline(baseline, "percent")
-        elif type_data == "Epochs":
-            data = data.apply_baseline(baseline)
+        data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
@@ -263,18 +262,18 @@ def within_trial_temporal(
 
 
 def between_trial_temporal(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        barycenter="dba",
-        params_barycenter=None,
-        params_dtw=None,
-        average=True,
-        additional_values=None,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    barycenter="dba",
+    params_barycenter=None,
+    params_dtw=None,
+    average=True,
+    additional_values=None,
 ):
     """
     Compute between-trial temporal variability using DTW distances to a mean.
@@ -378,32 +377,22 @@ def between_trial_temporal(
     data = data.copy()
 
     if baseline is not None:
-        if type_data == "EpochsTFR":
-            data = data.apply_baseline(baseline, "percent")
-        elif type_data == "Epochs":
-            data = data.apply_baseline(baseline)
+        data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
 
     df_dict = {"channel": [], "between_trial_temporal": []}
     for ch in data.ch_names:
-        if type_data == "EpochsTFR":
-            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-            # X.shape: n_epochs, n_channels, n_freqs, n_times
-
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_freqs, n_times
-
-            X = X.mean(1)
-            # X.shape: n_epochs, n_times
-
-        elif type_data == "Epochs":
-            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # X.shape: n_epochs, n_channels, n_times
-
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_times
+        X = _get_data(
+            data=data,
+            domain="temporal",
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            picks=ch,
+        )
 
         match barycenter:
             case "dba":
@@ -444,18 +433,18 @@ def between_trial_temporal(
 
 
 def between_trial_group_temporal(
-        data,
-        centroid="mean",
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        barycenter="dba",
-        params_barycenter=None,
-        params_dtw=None,
-        additional_values=None,
-        average=True,
+    data,
+    centroid="mean",
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    barycenter="dba",
+    params_barycenter=None,
+    params_dtw=None,
+    additional_values=None,
+    average=True,
 ):
     """
     Compute between-trial-group temporal variability using DTW distances to a centroid.
@@ -549,6 +538,7 @@ def between_trial_group_temporal(
     - This function measures variability between *group-level representatives*
       (e.g., averages) rather than between single-trial epochs.
     """
+
     if params_barycenter is None:
         params_barycenter = {}
     else:
@@ -559,30 +549,9 @@ def between_trial_group_temporal(
     else:
         params_dtw = params_dtw.copy()
 
-    def proc_tfr(tfr, tmin, tmax, fmin, fmax, ch):
-        X = tfr.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-        # X.shape: n_channels, n_freqs, n_times
-
-        X = np.squeeze(X)
-        # X.shape: n_freqs, n_times
-
-        X = X.mean(0)
-        # X.shape: n_times
-
-        return X
-
-    def proc_evoked(evoked, tmin, tmax, ch):
-        X = evoked.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-        # X.shape: n_channels, n_times
-
-        X = np.squeeze(X)
-        # X.shape: n_times
-
-        return X
-
     type_data = _get_data_type(data)
 
-    if not ((type_data == "list_Evoked") or (type_data == "list_AverageTFR")):
+    if type_data not in ["list_Evoked", "list_AverageTFR"]:
         raise ValueError(
             "data must be an instance of list of Evoked or AverageTFR objects."
         )
@@ -591,9 +560,7 @@ def between_trial_group_temporal(
         data_centroid = centroid
 
         type_data_centroid = _get_data_type(data_centroid)
-        if not (
-                (type_data_centroid == "Evoked") or (type_data_centroid == "AverageTFR")
-        ):
+        if type_data_centroid not in ["Evoked", "AverageTFR"]:
             raise ValueError(
                 "centroid must be an instance of Evoked or AverageTFR objects."
             )
@@ -619,25 +586,28 @@ def between_trial_group_temporal(
 
     df_dict = {"channel": [], "between_trial_group_temporal": []}
     for ch in data[0].ch_names:
-        if type_data == "list_AverageTFR":
-            X_list = [
-                proc_tfr(data[n], tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch)
-                for n in range(len(data))
-            ]
-            if data_centroid is not None:
-                X_centroid = proc_tfr(
-                    data_centroid, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, ch=ch
-                )
-
-        elif type_data == "list_Evoked":
-
-            X_list = [
-                proc_evoked(data[n], tmin=tmin, tmax=tmax, ch=ch)
-                for n in range(len(data))
-            ]
-
-            if data_centroid is not None:
-                X_centroid = proc_evoked(data_centroid, tmin=tmin, tmax=tmax, ch=ch)
+        X_list = []
+        for n in range(len(data)):
+            x = _get_data(
+                data=data[n],
+                domain="temporal",
+                tmin=tmin,
+                tmax=tmax,
+                fmin=fmin,
+                fmax=fmax,
+                picks=ch,
+            )
+            X_list.append(x)
+        if data_centroid is not None:
+            X_centroid = _get_data(
+                data=data_centroid,
+                domain="temporal",
+                tmin=tmin,
+                tmax=tmax,
+                fmin=fmin,
+                fmax=fmax,
+                picks=ch,
+            )
 
         if data_centroid is None:
             match barycenter:

@@ -203,6 +203,7 @@ btw_trial_spat_left = nearby.metrics.between_trial_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 btw_trial_spat_right = nearby.metrics.between_trial_spatial(
     tfrs["right_hand"],
@@ -210,6 +211,7 @@ btw_trial_spat_right = nearby.metrics.between_trial_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
 )
 
 btw_trial_spat = pd.concat([btw_trial_spat_left, btw_trial_spat_right])
@@ -226,6 +228,7 @@ btw_trial_freq_left = nearby.metrics.between_trial_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
     picks="C4",
 )
 btw_trial_freq_right = nearby.metrics.between_trial_frequency(
@@ -234,6 +237,7 @@ btw_trial_freq_right = nearby.metrics.between_trial_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
+    metric="angle",
     picks="C3",
 )
 

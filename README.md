@@ -34,9 +34,15 @@ Check out the documentation [here](https://simonkojima.github.io/nearby-docs/).
 
 ### Requirements for docs generation
 
+Install nearby and dependencies
+
+In the nearby root directory
 ```
-pip install git+https://github.com/NeuroTechX/moabb.git#egg=moabb
-pip install filelock sphinx pydata-sphinx-theme sphinx-multiversion sphinx-gallery numpydoc tslearn autograd pymanopt[autograd]
+pip install -e .
+```
+
+```
+pip install moabb filelock sphinx pydata-sphinx-theme sphinx-multiversion sphinx-gallery numpydoc tslearn autograd pymanopt[autograd]
 ```
 
 1. Run following in docs
