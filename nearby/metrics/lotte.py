@@ -70,8 +70,6 @@ def class_stability(
     -----
     - The dispersion is computed as the mean of Riemannian distances obtained via
       :func:`pyriemann.utils.distance.distance` with ``metric="riemann"``.
-    - This function assumes inputs are SPD; no SPD validation or regularization is
-      performed here.
     - If both ``epochs`` and ``covs`` are provided, ``covs`` is used and ``epochs`` is
       ignored (current behavior follows the implementation logic).
 
