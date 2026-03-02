@@ -15,39 +15,39 @@ def mean_erds(
         average=True,
 ):
     """
-    Compute mean ERD/S values for each channel.
+    Compute mean ERD/S amplitude per channel.
 
-    For each channel, this function extracts an epoch-wise ERD/S time course,
-    summarizes each epoch by its mean over time within ``[tmin, tmax]``, and then
-    optionally averages these per-epoch values across epochs.
+    This function computes the channel-wise mean ERD/S amplitude as defined as
+    "The means of the ERD" in Rimbert et al. (MetroXRAINE 2022). It is **not** a
+    variability metric.
 
-    This metrics is **NOT a variability metric**, and it is called **The means of the ERD** in the original
-    paper by Rimbert et al. [1]_.
+    For each channel, an epoch-wise ERD/S time course is extracted, each epoch is
+    summarized by its mean over time within ``[tmin, tmax]``, and (optionally) these
+    per-epoch values are averaged across epochs.
 
-    - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, values are optionally
-      restricted to ``[fmin, fmax]`` and averaged over frequency, yielding one time
-      course per epoch.
-    - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is used directly
-      (in microvolts).
+    Supported inputs are time-domain epochs (:class:`mne.epochs.Epochs`) and
+    time–frequency epochs (:class:`mne.time_frequency.tfr.EpochsTFR`). For TFR input,
+    values can be restricted to ``[fmin, fmax]`` and reduced to a single time course
+    per epoch/channel by the internal data extraction routine.
 
     Parameters
     ----------
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        Epoched MNE object. Only these two types are supported.
+        Epoched MNE object.
 
     baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(None, 0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing means.
-        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline is applied with
-        ``mode="percent"``.
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the mean.
+        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied
+        with ``mode="percent"`` (via :meth:`mne.time_frequency.EpochsTFR.apply_baseline`).
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. Only used when ``data`` is an
+        Lower and upper frequency bounds (Hz). Only used when ``data`` is
         :class:`~mne.time_frequency.tfr.EpochsTFR`. If provided, values are restricted
-        to frequencies in ``[fmin, fmax]`` before averaging over frequency.
+        to ``[fmin, fmax]`` before frequency reduction.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, data are cropped to
+        Time bounds (seconds) used to crop the extracted time course(s) to
         ``[tmin, tmax]`` before averaging over time.
 
     picks : str | array_like of int | array_like of str | None, optional
@@ -55,36 +55,21 @@ def mean_erds(
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
 
     average : bool, default=True
-        Controls the output format for each channel.
-
-        - If ``True``, return a single scalar per channel (mean of per-epoch means).
-        - If ``False``, return a JSON-encoded list of per-epoch mean values (epoch order
-          matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+        If ``True``, return a scalar mean across epochs (mean of per-epoch means).
+        If ``False``, return the per-epoch mean values as an array of shape
+        ``(n_epochs,)``.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with one row per channel.
-
-        ``channel`` : str
-            Channel name.
-
-        ``mean_erds`` : float | str
-            If ``average=True``, a scalar mean value.
-            If ``average=False``, a JSON-encoded list of per-epoch mean values with
-            length ``n_epochs``.
+    mean : float | ndarray of shape (n_epochs,)
+        Channel-wise mean ERD/S amplitude aggregated across epochs (scalar) or
+        per-epoch values (array), depending on ``average``.
 
     Notes
     -----
     The per-epoch value is computed by averaging the extracted time course over time
-    within ``[tmin, tmax]``. For TFR input, the time course is first obtained by
-    averaging over frequencies within ``[fmin, fmax]``.
-    The function operates on a copy of the input object (``data.copy()``) and does not
-    modify inputs in place.
-
+    within ``[tmin, tmax]``. The function operates on a copy of the input object
+    (``data.copy()``) and does not modify inputs in place.
 
     References
     ----------
@@ -143,61 +128,61 @@ def standard_deviation_erds(
         ddof=1,
 ):
     """
-        Compute the standard deviation of mean ERD/S values across trials.
 
-    This metric quantifies *between-trial amplitude variability* of ERD/S.
-    For each channel, each epoch is first summarized by a single mean ERD/S
-    value (averaged over time, and over frequency for TFR input). The standard
-    deviation of these per-epoch mean values is then computed across epochs.
+    Compute the standard deviation of per-epoch mean ERD/S amplitudes.
 
-    - If ``data`` is an :class:`mne.time_frequency.tfr.EpochsTFR`, values are
-      optionally restricted to ``[fmin, fmax]``, averaged over frequency, and
-      then averaged over time.
-    - If ``data`` is an :class:`mne.epochs.Epochs`, the epoched signal is averaged
-      over time directly (in microvolts).
+    This metric quantifies *between-trial amplitude variability* of ERD/S by taking
+    the standard deviation across epochs of a per-epoch ERD/S amplitude summary.
+
+    For each channel:
+    1) extract an epoch-wise ERD/S time course,
+    2) summarize each epoch by its mean over time within ``[tmin, tmax]``,
+       (and over frequency for TFR input, as handled by the internal extraction),
+    3) compute the standard deviation of these per-epoch means across epochs.
+
+    Supported inputs are time-domain epochs (:class:`mne.epochs.Epochs`) and
+    time–frequency epochs (:class:`mne.time_frequency.tfr.EpochsTFR`). For TFR input,
+    values can be restricted to ``[fmin, fmax]`` and reduced to a single time course
+    per epoch/channel by the internal data extraction routine.
 
     Parameters
     ----------
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        Epoched MNE object. Only these two types are supported.
+        Epoched MNE object.
 
     baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(None, 0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing values.
-        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline is applied with
-        ``mode="percent"``.
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
+        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline correction is applied
+        with ``mode="percent"``.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. Only used when ``data`` is an
+        Lower and upper frequency bounds (Hz). Only used when ``data`` is
         :class:`~mne.time_frequency.tfr.EpochsTFR`. If provided, values are restricted
-        to frequencies in ``[fmin, fmax]`` before averaging.
+        to ``[fmin, fmax]`` before frequency reduction.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, data are cropped to
-        ``[tmin, tmax]`` before computing per-epoch means.
+        Time bounds (seconds) used to crop the extracted time course(s) to
+        ``[tmin, tmax]`` before averaging over time.
 
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.Epochs.pick` /
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
 
     ddof : int, default=1
-        Delta degrees of freedom passed to :func:`numpy.std`.
-        This parameter is forwarded directly to ``np.std(X, ddof=ddof)`` when
-        computing the standard deviation across epochs.
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+        Delta degrees of freedom passed to :func:`numpy.std`. The standard deviation
+        is computed as ``np.std(values, ddof=ddof)`` over epochs.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with one row per channel.
+    std : float
+        Standard deviation of the per-epoch mean ERD/S amplitudes across epochs.
 
-        ``channel`` : str
-            Channel name.
-
-        ``standard_deviation_erds`` : float
-            Standard deviation of per-epoch mean ERD/S values across epochs.
+    Notes
+    -----
+    The per-epoch value is computed by averaging the extracted time course over time
+    within ``[tmin, tmax]``. The function operates on a copy of the input object
+    (``data.copy()``) and does not modify inputs in place.
 
     References
     ----------

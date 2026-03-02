@@ -14,62 +14,66 @@ def class_stability(
     """
     Compute a Riemannian geometry-based class stability score.
 
-    This function quantifies how tightly a set of symmetric positive definite (SPD)
-    covariance matrices cluster on the Riemannian manifold. It first computes a
-    centroid covariance matrix (by default, the Riemannian mean) and then computes
-    the average Riemannian distance from each covariance matrix to the centroid. This
-    average distance defines a dispersion value that is mapped to a stability score
-    in ``(0, 1]`` via ``1 / (1 + dispersion)`` (higher means more stable / less dispersed).
+    This function measures how tightly a set of symmetric positive definite (SPD)
+    covariance matrices cluster on the Riemannian manifold. It computes a centroid
+    covariance matrix (by default, the Riemannian mean) and then measures the
+    dispersion as the average Riemannian distance from each covariance matrix to the
+    centroid. The dispersion is mapped to a stability score in ``(0, 1]`` via::
+
+        stability = 1 / (1 + dispersion)
+
+    where higher values indicate higher stability (i.e., less dispersion).
 
     Input can be provided either as:
-
-    - ``covs``: a precomputed set of covariance matrices, or
+    - ``covs``: precomputed covariance matrices, or
     - ``epochs``: an :class:`mne.epochs.Epochs` object from which covariance matrices
       are estimated using PyRiemann.
 
     Parameters
     ----------
     epochs : mne.epochs.Epochs | None, optional
-        Epoched EEG data used to estimate covariance matrices when ``covs`` is ``None``.
-        If provided, covariance matrices are computed from::
+        Epoched EEG data used to estimate covariance matrices when ``covs`` is
+        ``None``. Covariances are computed from::
 
-            epochs.get_data(units="uV", tmin=tmin, tmax=tmax)
+            epochs.get_data(units="uV", tmin=tmin, tmax=tmax, picks=picks)
 
         using :class:`pyriemann.estimation.Covariances` with ``estimator=estimator``.
 
-    covs : array_like, shape (n_matrices, n_channels, n_channels) | None, optional
-        A collection of covariance matrices. The array must be 3D and square in the
-        last two dimensions. Matrices are assumed to be SPD.
+    covs : array_like of shape (n_matrices, n_channels, n_channels) | None, optional
+        Collection of covariance matrices. Must be 3D and square in the last two
+        dimensions. Matrices are assumed to be SPD.
 
     tmin, tmax : float | None, optional
-        Time range of interest (in seconds) used when extracting epoch data from
-        ``epochs`` (passed to :meth:`mne.Epochs.get_data`).
+        Time bounds (seconds) used when extracting epoch data from ``epochs`` (passed
+        to :meth:`mne.Epochs.get_data`). Ignored when ``covs`` is provided.
 
-    centroid : {"mean"} | array_like, shape (n_channels, n_channels), default="mean"
-        Definition of the centroid covariance matrix.
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include when extracting data from ``epochs``. Passed to
+        :meth:`mne.Epochs.get_data`. Ignored when ``covs`` is provided.
 
-        - ``"mean"``: compute the Riemannian mean using
-          :func:`pyriemann.utils.mean.mean_covariance` with ``metric="riemann"``.
-        - If an array is provided, it is used directly as the centroid.
+    centroid : ndarray of shape (n_channels, n_channels) | None, optional
+        Centroid covariance matrix. If ``None``, the centroid is computed as the
+        Riemannian mean using :func:`pyriemann.utils.mean.mean_covariance` with
+        ``metric="riemann"``. If an array is provided, it is used directly.
 
     estimator : str, default="scm"
-        Covariance estimator passed to :class:`pyriemann.estimation.Covariances`
-        when computing covariances from ``epochs`` (e.g., ``"scm"``, ``"oas"``,
-        ``"lwf"``).
-
-    additional_values : dict | pandas.Series | None, optional
-        Additional columns to append to the returned dataframe (e.g., ``subject``,
-        ``session``, ``condition``, ``class``). Added via ``add_values_to_df``.
+        Covariance estimator passed to :class:`pyriemann.estimation.Covariances` when
+        computing covariances from ``epochs`` (e.g., ``"scm"``, ``"oas"``, ``"lwf"``).
 
     Returns
     -------
-    df : pandas.DataFrame
-        Single-row dataframe containing at least:
+    stability : float
+        Class stability score in ``(0, 1]`` (higher means more stable / less
+        dispersed).
 
-        - ``class_stability`` : float
-            Stability score in ``(0, 1]`` (higher means more stable / less dispersed).
-
-        If ``additional_values`` is provided, additional columns are added.
+    Notes
+    -----
+    - The dispersion is computed as the mean of Riemannian distances obtained via
+      :func:`pyriemann.utils.distance.distance` with ``metric="riemann"``.
+    - This function assumes inputs are SPD; no SPD validation or regularization is
+      performed here.
+    - If both ``epochs`` and ``covs`` are provided, ``covs`` is used and ``epochs`` is
+      ignored (current behavior follows the implementation logic).
 
     References
     ----------

@@ -31,101 +31,89 @@ def within_trial_frequency(
         return_centroid=False,
 ):
     """
-    Compute within-trial frequency variability from time-resolved spectral patterns.
+    Compute within-trial frequency variability.
 
-    This metric quantifies how much the *spectral pattern across frequencies* changes
-    within each epoch. For each channel and epoch, the time–frequency representation
-    (TFR) is converted into a sequence of frequency vectors (one per time window or
-    one per time sample). A reference frequency vector is estimated for that epoch,
-    and the dispersion of frequency vectors around the reference is computed. The
-    final output is the mean dispersion across epochs, or a per-epoch list.
+    This metric quantifies how much the spectral pattern across frequencies varies
+    *within each epoch* over time. Each epoch is represented as a sequence of
+    frequency vectors (one vector per time window in ``mode="windows"``, or one vector
+    per time sample in ``mode="all_samples"``). A within-epoch centroid frequency
+    pattern is estimated using ``callback_centroid`` and the dispersion is computed
+    as the mean distance (``callback_distance``) between each frequency vector and
+    the centroid. The final output aggregates dispersions across epochs.
 
     Only time–frequency input (:class:`mne.time_frequency.tfr.EpochsTFR`) is supported.
-    For each channel, variability is computed independently.
 
     Parameters
     ----------
     data : mne.time_frequency.tfr.EpochsTFR
-        Epoched time–frequency data. This function is implemented for TFR input only.
+        Epoched time–frequency data.
 
     baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(None, 0)``). If provided, baseline
-        correction is applied on a copy of ``data`` using ``mode="percent"``.
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. If provided, spectra are restricted to
-        frequencies in ``[fmin, fmax]`` before computing variability. If ``None``,
-        all frequencies are used.
+        Lower and upper frequency bounds (Hz). If provided, spectra are restricted to
+        ``[fmin, fmax]`` prior to computing the metric.
 
     mode : {"windows", "all_samples"}, default="windows"
-        How to represent within-epoch temporal evolution of frequency patterns.
+        Temporal sampling strategy for frequency patterns.
 
-        - ``"windows"``: average the TFR within time windows; each window yields one
-          frequency vector of shape ``(n_freqs,)`` per epoch.
-        - ``"all_samples"``: use each time sample as a frequency vector (no temporal
+        - ``"windows"``: average within time windows; each window yields one frequency
+          vector of shape ``(n_freqs,)`` per epoch.
+        - ``"all_samples"``: use each time sample as a frequency vector (no time
           window averaging).
 
-    windows : array_like of shape (n_windows, 2) | None, optional
-        Explicit time windows in seconds: ``[[tmin_0, tmax_0], ..., [tmin_k, tmax_k]]``.
-        Only used when ``mode="windows"``. If ``None``, windows are generated
-        automatically using ``auto_window_size`` and ``auto_window_step`` between
-        ``tmin`` and ``tmax``.
-
     auto_window_size : float, default=0.1
-        Window length in seconds used when ``windows=None`` and ``mode="windows"``.
+        Window length (seconds) used when ``mode="windows"``.
 
     auto_window_step : float, default=0.1
-        Step in seconds used when ``windows=None`` and ``mode="windows"``.
+        Step size (seconds) used when ``mode="windows"``.
 
     tmin, tmax : float | None, optional
-        Time range of interest in seconds. Used only to generate automatic windows
-        when ``windows=None`` and ``mode="windows"``. These values are not applied
-        to cropping in ``mode="all_samples"``.
+        Time bounds (seconds) used to define the region of interest. In ``mode="windows"``
+        these bounds control the window generation. In ``mode="all_samples"``, these
+        bounds are passed to :meth:`mne.time_frequency.EpochsTFR.get_data`.
 
-    metric : {"angle", "cosine"}, default="angle"
-        Distance/mean definition used to compute within-epoch spectral dispersion.
+    callback_distance : callable | None, optional
+        Distance function comparing two frequency vectors of shape ``(n_freqs,)``.
+        If ``None``, uses :func:`nearby.distances.distance_angle`.
 
-        - ``"angle"``: angular distance from the Fréchet mean (p=2) of the frequency
-          vectors within an epoch.
-        - ``"cosine"``: cosine distance from the extrinsic mean of the frequency
-          vectors within an epoch.
+    callback_centroid : callable | None, optional
+        Function computing a centroid frequency vector from an epoch-specific matrix
+        ``X_trial`` of shape ``(n_windows, n_freqs)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Passed to
-        :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+        Channels to include. Passed to :meth:`mne.time_frequency.EpochsTFR.pick`.
+        If ``None``, all channels are used.
 
     average : bool, default=True
-        Controls the output format for each channel.
+        If ``True``, return a scalar averaged across epochs. If ``False``, return the
+        per-epoch dispersion values as an array of shape ``(n_epochs,)``.
 
-        - If ``True``, return a single scalar (mean dispersion across epochs).
-        - If ``False``, return a JSON-encoded list of per-epoch dispersion values
-          (epoch order matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+    return_centroid : bool, default=False
+        If ``True``, also return the per-epoch centroid frequency vectors.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with one row per channel.
+    dispersion : float | ndarray of shape (n_epochs,)
+        Within-trial frequency dispersion. If ``average=True``, a scalar (mean across
+        epochs). Otherwise, an array with one value per epoch.
 
-        ``channel`` : str
-            Channel name.
-
-        ``within_trial_frequency`` : float | str
-            If ``average=True``, the mean dispersion across epochs.
-            If ``average=False``, a JSON-encoded list of dispersions with length
-            ``n_epochs``.
+    centroid : ndarray of shape (n_epochs, n_freqs), optional
+        Returned only when ``return_centroid=True``. The within-epoch centroid
+        frequency vectors.
 
     Notes
     -----
-    - For each channel and epoch, frequency vectors are constructed either by
-      averaging over time windows (``mode="windows"``) or by using individual
-      time samples (``mode="all_samples"``).
     - The function operates on a copy of the input object (``data.copy()``) and does
       not modify ``data`` in place.
-    - This metric captures *within-trial frequency variability*, complementary to
-      spatial and temporal variability metrics.
+    - For ``mode="windows"``, at least two windows must be generated; otherwise a
+      :class:`ValueError` is raised.
+    - The exact meaning of distance and centroid depends on
+      ``callback_distance`` / ``callback_centroid``.
     """
     type_data = _get_data_type(data)
 
@@ -232,80 +220,71 @@ def between_trial_frequency(
         return_centroid=False,
 ):
     """
-    Compute between-trial frequency variability from epoch-wise spectra.
+    Compute between-trial frequency variability.
 
-    This metric quantifies how much the *spectral pattern across frequencies* varies
-    across epochs. For each channel, each epoch is reduced to a single frequency
-    vector by averaging the TFR over time within the selected window (``tmin``–``tmax``).
-    A reference spectrum is then estimated across epochs, and distances from this
-    mean to each epoch’s spectrum are computed. The final output is the mean distance
-    across epochs (or a per-epoch list) for each channel.
+    This metric quantifies how much the spectral pattern across frequencies varies
+    across epochs. Each epoch is reduced to a single frequency vector by averaging
+    the time–frequency representation over time within ``[tmin, tmax]`` (and optionally
+    restricting frequencies to ``[fmin, fmax]``). A centroid frequency pattern is then
+    estimated across epochs using ``callback_centroid``, and the dispersion is
+    computed as the mean distance (``callback_distance``) between each epoch spectrum
+    and the centroid. The final output aggregates distances across epochs.
 
-    Two distance/mean definitions are supported via ``metric``:
-
-    - ``"angle"``: angular distance to a Fréchet mean (p=2) on the unit sphere.
-    - ``"cosine"``: cosine distance to an extrinsic (Euclidean) mean.
+    Only time–frequency input (:class:`mne.time_frequency.tfr.EpochsTFR`) is supported.
 
     Parameters
     ----------
     data : mne.time_frequency.tfr.EpochsTFR
-        Epoched time–frequency data. This function is implemented for TFR input only.
+        Epoched time–frequency data.
 
     baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(None, 0)``). If provided, baseline
-        correction is applied on a copy of ``data`` using ``mode="percent"``.
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, data are cropped to
-        ``[tmin, tmax]`` before averaging over time.
+        Time bounds (seconds) used to crop the data to ``[tmin, tmax]`` prior to
+        averaging over time.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. If provided, spectra are restricted to
-        frequencies in ``[fmin, fmax]`` before computing variability. If ``None``,
-        all frequencies are used.
+        Lower and upper frequency bounds (Hz). If provided, spectra are restricted to
+        ``[fmin, fmax]`` prior to computing the metric.
 
-    metric : {"angle", "cosine"}, default="angle"
-        Distance/mean definition used to measure dispersion across epochs.
+    callback_distance : callable | None, optional
+        Distance function comparing two frequency vectors of shape ``(n_freqs,)``.
+        If ``None``, uses :func:`nearby.distances.distance_angle`.
 
-        - ``"angle"``: estimate the across-epoch mean spectrum using a Fréchet mean
-          (p=2), then compute angular distances to each epoch spectrum.
-        - ``"cosine"``: estimate the mean spectrum using an extrinsic mean, then compute
-          cosine distances to each epoch spectrum.
+    callback_centroid : callable | None, optional
+        Function computing a centroid frequency vector from the stacked epoch spectra
+        ``X`` of shape ``(n_epochs, n_freqs)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Passed to
-        :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+        Channels to include. Passed to :meth:`mne.time_frequency.EpochsTFR.pick`.
+        If ``None``, all channels are used.
 
     average : bool, default=True
-        Controls the output format for each channel.
+        If ``True``, return a scalar mean distance across epochs. If ``False``, return
+        per-epoch distances as an array of shape ``(n_epochs,)``.
 
-        - If ``True``, return a single scalar (mean distance across epochs).
-        - If ``False``, return a JSON-encoded list of per-epoch distances (epoch order
-          matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+    return_centroid : bool, default=False
+        If ``True``, also return the centroid frequency vector.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with one row per channel.
+    dispersion : float | ndarray of shape (n_epochs,)
+        Between-trial frequency dispersion. If ``average=True``, a scalar (mean across
+        epochs). Otherwise, an array with one value per epoch.
 
-        ``channel`` : str
-            Channel name.
-
-        ``between_trial_frequency`` : float | str
-            If ``average=True``, the mean distance across epochs.
-            If ``average=False``, a JSON-encoded list of distances with length
-            ``n_epochs``.
+    centroid : ndarray of shape (n_freqs,), optional
+        Returned only when ``return_centroid=True``. The centroid frequency vector.
 
     Notes
     -----
-    For each channel, the per-epoch spectrum is computed by averaging TFR values over
-    time within ``[tmin, tmax]`` (after optional frequency restriction). Variability is
-    measured as the dispersion of these spectra around a mean spectrum estimated across
-    epochs. The function operates on a copy of the input object (``data.copy()``) and
-    does not modify ``data`` in place.
+    - The function operates on a copy of the input object (``data.copy()``) and does
+      not modify ``data`` in place.
+    - The exact meaning of distance and centroid depends on
+      ``callback_distance`` / ``callback_centroid``.
     """
     type_data = _get_data_type(data)
 
@@ -373,92 +352,75 @@ def between_trial_group_frequency(
         return_centroid=False,
 ):
     """
-    Compute between-trial-group frequency variability from group-representative spectra.
+    Compute between-trial-group frequency variability.
 
-    This metric quantifies how much *group-level spectral patterns* differ from one
-    another. Each element of ``data`` is expected to be a group-representative TFR
-    (:class:`mne.time_frequency.tfr.AverageTFR`). For each channel, each group object
-    is reduced to a single frequency vector by averaging the TFR over time within
-    ``[tmin, tmax]`` (after optional frequency restriction to ``[fmin, fmax]``).
-    Distances between each group spectrum and a centroid spectrum are then computed.
-    The final output is the mean distance across groups (or a per-group list) for
-    each channel.
-
-    The centroid can be computed from the group spectra (``centroid="mean"``) or
-    provided explicitly as an :class:`~mne.time_frequency.tfr.AverageTFR`. When
-    ``centroid="mean"``, the centroid computation depends on ``metric``:
-
-    - ``metric="angle"`` uses a Fréchet mean (p=2) on the unit sphere.
-    - ``metric="cosine"`` uses an extrinsic (Euclidean) mean.
+    This metric quantifies how much group-representative spectral patterns differ
+    from one another. Each element of ``data`` is expected to be a group-level
+    representative time–frequency object (:class:`mne.time_frequency.tfr.AverageTFR`).
+    Each group object is reduced to a single frequency vector by averaging the TFR
+    over time within ``[tmin, tmax]`` (and optionally restricting frequencies to
+    ``[fmin, fmax]``). A centroid spectrum is then defined (either computed from the
+    group spectra or extracted from an explicit centroid object), and the dispersion
+    is computed as the mean distance (``callback_distance``) between each group
+    spectrum and the centroid.
 
     Parameters
     ----------
     data : list of mne.time_frequency.tfr.AverageTFR
-        List of group-representative TFR objects. Only lists of
-        :class:`~mne.time_frequency.tfr.AverageTFR` are supported.
+        Group-representative time–frequency objects. All entries must be
+        :class:`~mne.time_frequency.tfr.AverageTFR`.
 
-    centroid : {"mean"} | mne.time_frequency.tfr.AverageTFR, default="mean"
-        Definition of the centroid (reference) spectrum used for comparisons.
-
-        - ``"mean"``: compute the centroid spectrum from the group spectra. The mean
-          definition depends on ``metric`` (Fréchet mean for ``"angle"``, extrinsic
-          mean for ``"cosine"``).
-        - If an :class:`~mne.time_frequency.tfr.AverageTFR` is provided, it is reduced
-          to a centroid spectrum using the same averaging operations as for ``data``.
+    centroid : mne.time_frequency.tfr.AverageTFR | None, optional
+        Reference centroid object. If ``None``, the centroid spectrum is computed from
+        the group spectra via ``callback_centroid``. If provided, it must be an
+        :class:`~mne.time_frequency.tfr.AverageTFR` and will be reduced to a spectrum
+        using the same extraction procedure as for group objects.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, data are cropped to
-        ``[tmin, tmax]`` before averaging over time.
+        Time bounds (seconds) used to crop objects prior to averaging over time.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. If provided, spectra are restricted to
-        frequencies in ``[fmin, fmax]`` before computing distances. If ``None``,
-        all frequencies are used.
-
-    metric : {"angle", "cosine"}, default="angle"
-        Distance definition used to compare spectra across groups.
-
-        - ``"angle"``: angular distance between spectra (via ``distance_angle``).
-        - ``"cosine"``: cosine distance between spectra.
+        Lower and upper frequency bounds (Hz). If provided, spectra are restricted to
+        ``[fmin, fmax]`` prior to computing the metric.
 
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Applied to each element in ``data`` and to the centroid
         object (if provided). If ``None``, all channels are used.
 
+    callback_distance : callable | None, optional
+        Distance function comparing two frequency vectors of shape ``(n_freqs,)``.
+        If ``None``, uses :func:`nearby.distances.distance_angle`.
+
+    callback_centroid : callable | None, optional
+        Function computing a centroid frequency vector from a stack of group spectra
+        with shape ``(n_groups, n_freqs)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
+
     average : bool, default=True
-        Controls the output format for each channel.
+        If ``True``, return a scalar mean distance across groups. If ``False``, return
+        per-group distances as an array of shape ``(n_groups,)``.
 
-        - If ``True``, return a single scalar (mean distance across groups).
-        - If ``False``, return a JSON-encoded list of per-group distances (group order
-          matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+    return_centroid : bool, default=False
+        If ``True``, also return the centroid frequency vector used as the reference.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with one row per channel.
+    dispersion : float | ndarray of shape (n_groups,)
+        Between-trial-group frequency dispersion. If ``average=True``, a scalar (mean
+        across groups). Otherwise, an array with one value per group.
 
-        ``channel`` : str
-            Channel name.
-
-        ``between_trial_group_frequency`` : float | str
-            If ``average=True``, the mean distance across groups.
-            If ``average=False``, a JSON-encoded list of distances with length
-            ``len(data)``.
+    centroid_vector : ndarray of shape (n_freqs,), optional
+        Returned only when ``return_centroid=True``. The centroid frequency vector
+        used as the reference.
 
     Notes
     -----
-    - For each group :class:`~mne.time_frequency.tfr.AverageTFR`, the per-channel
-      spectrum is computed by averaging TFR values over time within ``[tmin, tmax]``
-      (after optional frequency restriction).
-    - This function measures variability between *group-level representatives*
-      rather than between single-trial epochs.
-    - The function operates on copies of the input objects (``copy()``) and does not
-      modify inputs in place.
+    - The function operates on copies of the input objects (``.copy()``) and does not
+      modify the originals in place.
+    - The exact meaning of distance and centroid depends on
+      ``callback_distance`` / ``callback_centroid``.
     """
-
     type_data = _get_data_type(data)
     if not (type_data == "list_AverageTFR"):
         raise ValueError("data must be an instance of list of AverageTFR objects.")

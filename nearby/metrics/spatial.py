@@ -30,100 +30,92 @@ def within_trial_spatial(
         return_centroid=False,
 ):
     """
-    Compute within-trial spatial variability from time-resolved channel patterns.
+    Compute within-trial spatial variability.
 
-    This metric quantifies how much the spatial pattern changes
-    within each epoch. For every epoch, the data are converted into a sequence of
-    spatial vectors (one per time window or one per time sample). A reference spatial
-    vector is estimated for that epoch, and the dispersion of spatial vectors around
-    the reference is computed. The final output is the mean dispersion across epochs,
-    or a per-epoch list.
+    This metric quantifies how much the *spatial pattern across channels* varies
+    within each epoch over time. For each epoch, the signal is converted into a
+    sequence of spatial vectors (one vector per time window in ``mode="windows"``,
+    or one vector per time sample in ``mode="all_samples"``). A within-epoch centroid
+    spatial pattern is estimated using ``callback_centroid`` and the dispersion is
+    computed as the mean distance (``callback_distance``) between each spatial vector
+    and the centroid. The final output aggregates dispersions across epochs.
 
-    The input can be time-domain epochs (:class:`mne.epochs.Epochs`) or time–frequency
-    epochs (:class:`mne.time_frequency.tfr.EpochsTFR`). For TFR input, values are
-    optionally restricted to ``fmin``–``fmax`` and averaged over frequency before
-    forming spatial vectors.
+    The input can be either time-domain epochs (:class:`mne.epochs.Epochs`) or
+    time–frequency epochs (:class:`mne.time_frequency.tfr.EpochsTFR`). For TFR input,
+    power may be restricted to ``fmin``–``fmax`` (Hz) and reduced to a single time
+    course per epoch/channel (e.g., by averaging across frequency) before computing
+    spatial vectors.
 
     Parameters
     ----------
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        Epoched MNE object. Only these two types are supported.
+        Epoched MNE object.
 
     baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(-1, 0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing variability.
-        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline is applied with
-        ``mode="percent"``.
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. Only used when ``data`` is an
-        :class:`~mne.time_frequency.tfr.EpochsTFR`. If provided, TFR values are cropped
-        in frequency to ``[fmin, fmax]`` and then averaged over frequency.
+        Lower and upper frequency bounds (Hz). Only used when ``data`` is
+        :class:`~mne.time_frequency.tfr.EpochsTFR`.
 
     mode : {"windows", "all_samples"}, default="windows"
-        How to represent within-epoch temporal evolution of spatial patterns.
+        Temporal sampling strategy for spatial patterns.
 
-        - ``"windows"``: average data within time windows; each window yields one
-          spatial vector of shape ``(n_channels,)`` per epoch.
+        - ``"windows"``: average within windows; each window yields one spatial vector
+          of shape ``(n_channels,)`` per epoch.
         - ``"all_samples"``: use each time sample as a spatial vector (no window
           averaging). For TFR input, frequency is still averaged first.
 
-    windows : array_like of shape (n_windows, 2) | None, optional
-        Explicit time windows in seconds: ``[[tmin_0, tmax_0], ..., [tmin_k, tmax_k]]``.
-        Only used when ``mode="windows"``. If ``None``, windows are generated
-        automatically using ``auto_window_size`` and ``auto_window_step`` between
-        ``tmin`` and ``tmax``. At least two windows are required.
-
     auto_window_size : float, default=0.1
-        Window length in seconds used when ``windows=None`` and ``mode="windows"``.
+        Window length (seconds) used when ``mode="windows"``.
 
     auto_window_step : float, default=0.1
-        Step in seconds used when ``windows=None`` and ``mode="windows"``.
+        Step size (seconds) used when ``mode="windows"``.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, data are cropped to
-        ``[tmin, tmax]`` when extracting window averages (``mode="windows"``) and also
-        when extracting sample-wise patterns (``mode="all_samples"``).
+        Time bounds (seconds) used to select the region of interest. Applied during
+        data extraction (and thus affects the number of windows/samples).
 
-    metric : {"angle", "cosine"}, default="angle"
-        Distance/mean definition used to compute within-epoch spatial dispersion.
+    callback_distance : callable | None, optional
+        Distance function comparing two spatial vectors of shape ``(n_channels,)``.
+        If ``None``, uses :func:`nearby.distances.distances.distance_angle`.
 
-        - ``"angle"``: angular distance from the Fréchet mean (p=2) of the spatial
-          vectors in an epoch. See :func:`nearby.mean.mean_frechet_p2`.
-        - ``"cosine"``: cosine distance from the extrinsic mean of the spatial vectors. See :func:`nearby.mean.mean_extrinsic`:.
+    callback_centroid : callable | None, optional
+        Function computing a centroid spatial vector from an epoch-specific matrix
+        ``X_trial`` of shape ``(n_windows, n_channels)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.Epochs.pick` /
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
 
     average : bool, default=True
-        Controls the output format.
+        If ``True``, return a scalar averaged across epochs. If ``False``, return the
+        per-epoch dispersion values as an array of shape ``(n_epochs,)``.
 
-        - If ``True``, return a single scalar (mean dispersion across epochs).
-        - If ``False``, return a JSON-encoded list of per-epoch dispersion values
-          (epoch order matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+    return_centroid : bool, default=False
+        If ``True``, also return the per-epoch centroid spatial vectors.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with a single row.
+    dispersion : float | ndarray of shape (n_epochs,)
+        Within-trial spatial dispersion. If ``average=True``, a scalar (mean across
+        epochs). Otherwise, an array with one value per epoch.
 
-        ``within_trial_spatial`` : float | str
-            If ``average=True``, the mean dispersion across epochs.
-            If ``average=False``, a JSON-encoded list of dispersions with length
-            ``n_epochs``.
+    centroid : ndarray of shape (n_epochs, n_channels), optional
+        Returned only when ``return_centroid=True``. The within-epoch centroid spatial
+        vectors.
 
     Notes
     -----
-    - When ``mode="windows"`` and ``windows=None``, automatic windows are generated
-      using ``tmin``, ``tmax``, ``auto_window_size``, and ``auto_window_step``. Two or
-      more windows are required.
-    - When ``mode="all_samples"``, the number of spatial vectors per epoch equals the
-      number of time samples in the cropped interval ``[tmin, tmax]`` (or the full epoch
-      if both are ``None``).
+    - The function operates on a copy of the input object (``data.copy()``) and does
+      not modify ``data`` in place.
+    - For ``mode="windows"``, at least two windows must be generated; otherwise a
+      :class:`ValueError` is raised.
+    - The exact meaning of distance and centroid depends on
+      ``callback_distance`` / ``callback_centroid``.
     """
     type_data = _get_data_type(data)
 
@@ -240,71 +232,72 @@ def between_trial_spatial(
         return_centroid=False,
 ):
     """
-    Compute between-trial spatial variability from epoch-wise channel patterns.
+    Compute between-trial spatial variability.
 
-    This metric quantifies how much the spatial pattern varies
-    across epochs. Each epoch is reduced to a single spatial vector (one value per
-    channel) by averaging over time (and over frequency for TFR input). A reference
-    spatial pattern is then estimated across epochs, and distances from this mean
-    to each epoch’s spatial vector are computed. The final output is the mean
-    distance across epochs, or a per-epoch list.
+    This metric quantifies how much the spatial pattern across channels varies across
+    epochs. Each epoch is reduced to a single spatial vector by averaging over time
+    (and additionally over frequency for TFR input). A centroid spatial pattern is
+    then estimated across epochs using ``callback_centroid``, and the dispersion is
+    computed as the mean distance (``callback_distance``) between each epoch spatial
+    vector and the centroid. The final output aggregates distances across epochs.
 
-    Two distance/mean definitions are supported via ``metric``:
-
-    - ``"angle"``: angular distance to a Fréchet mean (p=2) on the unit sphere.
-    - ``"cosine"``: cosine distance to an extrinsic mean.
+    The input can be either time-domain epochs (:class:`mne.epochs.Epochs`) or
+    time–frequency epochs (:class:`mne.time_frequency.tfr.EpochsTFR`). For TFR input,
+    power may be restricted to ``fmin``–``fmax`` (Hz) before the time-averaging step.
 
     Parameters
     ----------
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
-        Epoched MNE object. Only these two types are supported.
+        Epoched MNE object.
 
     baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(-1, 0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing variability.
-        For :class:`~mne.time_frequency.tfr.EpochsTFR`, baseline is applied with
-        ``mode="percent"``.
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. Only used when ``data`` is an
-        :class:`~mne.time_frequency.tfr.EpochsTFR`. If provided, TFR values are cropped
-        in frequency to ``[fmin, fmax]`` prior to averaging.
+        Lower and upper frequency bounds (Hz). Only used when ``data`` is
+        :class:`~mne.time_frequency.tfr.EpochsTFR`.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, data are cropped to
-        ``[tmin, tmax]`` before averaging over time.
+        Time bounds (seconds) used to crop the data to ``[tmin, tmax]`` prior to
+        averaging over time.
 
-    metric : {"angle", "cosine"}, default="angle"
-        Distance/mean definition used to measure dispersion across epochs.
+    callback_distance : callable | None, optional
+        Distance function comparing two spatial vectors of shape ``(n_channels,)``.
+        If ``None``, uses :func:`nearby.distances.distances.distance_angle`.
 
-        - ``"angle"``: estimate the across-epoch mean pattern using a Fréchet mean
-          (p=2), then compute angular distances to each epoch pattern. See :func:`nearby.mean.mean_frechet_p2`
-        - ``"cosine"``: estimate the mean pattern using an extrinsic mean, then compute
-          cosine distances to each epoch pattern. See :func:`nearby.mean.mean_extrinsic`.
+    callback_centroid : callable | None, optional
+        Function computing a centroid spatial vector from the stacked epoch vectors
+        ``X`` of shape ``(n_epochs, n_channels)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.Epochs.pick` /
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
 
     average : bool, default=True
-        Controls the output format.
+        If ``True``, return a scalar mean distance across epochs. If ``False``, return
+        per-epoch distances as an array of shape ``(n_epochs,)``.
 
-        - If ``True``, return a single scalar (mean distance across epochs).
-        - If ``False``, return a JSON-encoded list of per-epoch distances (epoch order
-          matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+    return_centroid : bool, default=False
+        If ``True``, also return the centroid spatial vector.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with a single row.
+    dispersion : float | ndarray of shape (n_epochs,)
+        Between-trial spatial dispersion. If ``average=True``, a scalar (mean across
+        epochs). Otherwise, an array with one value per epoch.
 
-        ``between_trial_spatial`` : float | str
-            If ``average=True``, the mean distance across epochs.
-            If ``average=False``, a JSON-encoded list of distances with length
-            ``n_epochs``.
+    centroid : ndarray of shape (n_channels,), optional
+        Returned only when ``return_centroid=True``. The centroid spatial vector.
+
+    Notes
+    -----
+    - The function operates on a copy of the input object (``data.copy()``) and does
+      not modify ``data`` in place.
+    - The exact meaning of distance and centroid depends on
+      ``callback_distance`` / ``callback_centroid``.
     """
     type_data = _get_data_type(data)
 
@@ -374,90 +367,74 @@ def between_trial_group_spatial(
         return_centroid=False,
 ):
     """
-    Compute between-trial-group spatial variability from group-representative patterns.
+    Compute between-trial-group spatial variability.
 
-    This metric quantifies how much group-level spatial patterns differ from one
-    another. Each element of ``data`` is expected to be a trial-group representative
-    object (e.g., an averaged response), and each group object is reduced to a single
-    spatial vector (one value per channel) by averaging over time (and over frequency
-    for TFR input). Distances between each group spatial vector and a centroid spatial
-    vector are then computed. The final output is the mean distance across groups, or
-    a per-group list.
-
-    The centroid can be computed from the group vectors (``centroid="mean"``) or
-    provided explicitly as an MNE object. The centroid computation depends on
-    ``metric``:
-
-    - ``metric="angle"`` uses a Fréchet mean (p=2) on the unit sphere.
-    - ``metric="cosine"`` uses an extrinsic (Euclidean) mean.
+    This metric quantifies how much group-representative spatial patterns differ from
+    one another. Each element of ``data`` is expected to be a group-level
+    representative MNE object (either :class:`mne.Evoked` or
+    :class:`mne.time_frequency.tfr.AverageTFR`). Each object is reduced to a single
+    spatial vector by averaging over time (and additionally over frequency for TFR
+    input). A centroid spatial vector is then defined (either computed from the group
+    vectors or extracted from an explicit centroid object), and the dispersion is the
+    mean distance (``callback_distance``) between each group vector and the centroid.
 
     Parameters
     ----------
     data : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
-        List of group-representative objects. All entries must have the same type:
-        either :class:`mne.Evoked` or :class:`mne.time_frequency.tfr.AverageTFR`.
+        Group-representative MNE objects. All entries must have the same type.
 
-    centroid : {"mean"} | mne.Evoked | mne.time_frequency.tfr.AverageTFR, default="mean"
-        Definition of the centroid (reference) pattern used for comparisons.
-
-        - ``"mean"``: compute the centroid spatial vector from the group spatial
-          vectors. The mean definition depends on ``metric`` (Fréchet mean for
-          ``"angle"``, extrinsic mean for ``"cosine"``).
-        - If an MNE object is provided, it is reduced to a centroid spatial vector
-          using the same averaging operations as for ``data``.
-
-        The centroid object must be of the same type as the elements of ``data``.
+    centroid : mne.Evoked | mne.time_frequency.tfr.AverageTFR | None, optional
+        Reference centroid object. If ``None``, the centroid spatial vector is
+        computed from the group spatial vectors via ``callback_centroid``.
+        If provided, it must be of the same type as the entries in ``data`` and will
+        be reduced to a spatial vector using the same extraction procedure as for
+        group objects.
 
     fmin, fmax : float | None, optional
-        Frequency band of interest in Hz. Only used when ``data`` contains
-        :class:`~mne.time_frequency.tfr.AverageTFR`. If provided, TFR values are cropped
-        in frequency to ``[fmin, fmax]`` prior to averaging.
+        Lower and upper frequency bounds (Hz). Only used when objects are
+        :class:`~mne.time_frequency.tfr.AverageTFR`.
 
     tmin, tmax : float | None, optional
-        Time window of interest in seconds. If provided, objects are cropped to
-        ``[tmin, tmax]`` prior to averaging over time.
+        Time bounds (seconds) used to crop objects prior to averaging over time.
 
-    metric : {"angle", "cosine"}, default="angle"
-        Distance definition used to measure dispersion across groups.
+    callback_distance : callable | None, optional
+        Distance function comparing two spatial vectors of shape ``(n_channels,)``.
+        If ``None``, uses :func:`nearby.distances.distances.distance_angle`.
 
-        - ``"angle"``: angular distance between spatial patterns.
-        - ``"cosine"``: cosine distance between spatial patterns.
+    callback_centroid : callable | None, optional
+        Function computing a centroid spatial vector from a stack of group spatial
+        vectors with shape ``(n_groups, n_channels)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Applied to each element in ``data`` and to the centroid
         object (if provided). If ``None``, all channels are used.
 
     average : bool, default=True
-        Controls the output format.
+        If ``True``, return a scalar mean distance across groups. If ``False``, return
+        per-group distances as an array of shape ``(n_groups,)``.
 
-        - If ``True``, return a single scalar (mean distance across groups).
-        - If ``False``, return a JSON-encoded list of per-group distances (group order
-          matches ``data``).
-
-    additional_values : dict | None, optional
-        Extra columns to append to the returned dataframe (e.g., ``{"subject": 1}``).
+    return_centroid : bool, default=False
+        If ``True``, also return the centroid spatial vector.
 
     Returns
     -------
-    df : pandas.DataFrame
-        Dataframe with a single row.
+    dispersion : float | ndarray of shape (n_groups,)
+        Between-trial-group spatial dispersion. If ``average=True``, a scalar (mean
+        across groups). Otherwise, an array with one value per group.
 
-        ``between_trial_group_spatial`` : float | str
-            If ``average=True``, the mean distance across groups.
-            If ``average=False``, a JSON-encoded list of distances with length
-            ``len(data)``.
+    centroid_vector : ndarray of shape (n_channels,), optional
+        Returned only when ``return_centroid=True``. The centroid spatial vector used
+        as the reference.
 
     Notes
     -----
-    - For :class:`~mne.time_frequency.tfr.AverageTFR`, each group spatial vector is
-      computed by averaging over frequency and then over time within the selected
-      window.
-    - For :class:`~mne.Evoked`, each group spatial vector is computed by averaging
-      over time within the selected window (returned in microvolts).
-    - This function measures variability between *group-level representatives*
-      rather than between single-trial epochs.
+    - The function operates on copies of the input objects (``.copy()``) and does not
+      modify the originals in place.
+    - The exact meaning of distance and centroid depends on
+      ``callback_distance`` / ``callback_centroid``.
     """
-
     type_data = _get_data_type(data)
 
     if type_data not in ["list_Evoked", "list_AverageTFR"]:
