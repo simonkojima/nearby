@@ -4,6 +4,8 @@ import pandas as pd
 import scipy
 import mne
 
+from functools import partial
+
 from ..distances import distance_angle
 from ..mean import extrinsic_mean, frechet_mean_angular
 
@@ -17,20 +19,20 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_frequency(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute within-trial frequency variability from time-resolved spectral patterns.
@@ -134,6 +136,12 @@ def within_trial_frequency(
     if not (type_data == "EpochsTFR"):
         raise ValueError("data must be an instance of EpochsTFR objects.")
 
+    if callback_distance is None:
+        callback_distance = distance_angle
+
+    if callback_centroid is None:
+        callback_centroid = partial(frechet_mean_angular, verbosity=0)
+
     data = data.copy()
 
     if baseline is not None:
@@ -142,28 +150,23 @@ def within_trial_frequency(
     if picks is not None:
         data = data.pick(picks=picks)
 
-    if metric not in ["angle", "cosine"]:
-        raise ValueError("metrics must be 'angle' or 'cosine'")
-
     df_dict = {"channel": [], "within_trial_frequency": []}
 
     X_dict = {}
     if mode == "windows":
-        if windows is None:
-            windows = _auto_windows(
-                size=auto_window_size,
-                step=auto_window_step,
-                tmin=tmin,
-                tmax=tmax,
-            )
+        windows = _auto_windows(
+            size=auto_window_size,
+            step=auto_window_step,
+            tmin=tmin,
+            tmax=tmax,
+        )
 
-            if (windows.ndim != 2) or (windows.shape[0] == 1):
-                raise ValueError(f"Two or more windows must be specified. {windows=}")
+        if (windows.ndim != 2) or (windows.shape[0] == 1):
+            raise ValueError(f"Two or more windows must be specified. {windows=}")
 
         for ch in data.ch_names:
             X_dict[ch] = []
             for window in windows:
-
                 X = _get_data(
                     data=data,
                     domain="frequency",
@@ -208,6 +211,14 @@ def within_trial_frequency(
             X_trial = X_dict[ch][idx_trial, :, :].squeeze()
             # X_trial.shape: n_windows, n_freqs
 
+            mean = callback_centroid(X_trial)
+
+            distances_trial = []
+            for n in range(n_windows):
+                d = callback_distance(mean, X_trial[n, :])
+                distances_trial.append(d)
+
+            """
             if metric == "angle":
                 mean = frechet_mean_angular(X_trial, verbosity=0)
 
@@ -223,6 +234,7 @@ def within_trial_frequency(
                 for n in range(n_windows):
                     d = scipy.spatial.distance.cosine(mean, X_trial[n, :])
                     distances_trial.append(d)
+            """
 
             dispersion_within_trial = np.mean(distances_trial)
 
@@ -245,16 +257,17 @@ def within_trial_frequency(
 
 
 def between_trial_frequency(
-    data,
-    baseline=None,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute between-trial frequency variability from epoch-wise spectra.
@@ -337,6 +350,12 @@ def between_trial_frequency(
     if not (type_data == "EpochsTFR"):
         raise ValueError("data must be an instance of EpochsTFR objects.")
 
+    if callback_distance is None:
+        callback_distance = distance_angle
+
+    if callback_centroid is None:
+        callback_centroid = partial(frechet_mean_angular, verbosity=0)
+
     data = data.copy()
 
     if baseline is not None:
@@ -344,9 +363,6 @@ def between_trial_frequency(
 
     if picks is not None:
         data = data.pick(picks=picks)
-
-    if metric not in ["angle", "cosine"]:
-        raise ValueError("metrics must be 'angle' or 'cosine'")
 
     df_dict = {"channel": [], "between_trial_frequency": []}
 
@@ -365,6 +381,13 @@ def between_trial_frequency(
 
         distances = []
 
+        mean = callback_centroid(X, verbosity=0)
+
+        for n in range(n_epochs):
+            d = callback_distance(mean, X[n, :])
+            distances.append(d)
+
+        """
         if metric == "angle":
             mean = frechet_mean_angular(X, verbosity=0)
 
@@ -380,6 +403,7 @@ def between_trial_frequency(
 
         else:
             raise ValueError("metrics must be 'angle' or 'cosine'")
+        """
 
         if average:
             distances = np.array(distances)
@@ -399,16 +423,16 @@ def between_trial_frequency(
 
 
 def between_trial_group_frequency(
-    data,
-    centroid="mean",
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        centroid="mean",
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute between-trial-group frequency variability from group-representative spectra.

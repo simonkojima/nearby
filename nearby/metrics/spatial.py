@@ -1,10 +1,11 @@
 import json
+from functools import partial
 import numpy as np
 import scipy
 import pandas as pd
 import mne
 
-from ..distances import distance_angle
+from ..distances.distances import distance_angle
 from ..mean import extrinsic_mean, frechet_mean_angular
 
 from ..utils.core import (
@@ -17,20 +18,21 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_spatial(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    windows=None,
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        mode="windows",
+        auto_window_size=0.1,
+        auto_window_step=0.1,
+        tmin=None,
+        tmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        # metric="angle",
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute within-trial spatial variability from time-resolved channel patterns.
@@ -133,6 +135,12 @@ def within_trial_spatial(
     if type_data not in ["EpochsTFR", "Epochs"]:
         raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
+    if callback_distance is None:
+        callback_distance = distance_angle
+
+    if callback_centroid is None:
+        callback_centroid = partial(frechet_mean_angular, verbosity=0)
+
     data = data.copy()
 
     if baseline is not None:
@@ -143,31 +151,26 @@ def within_trial_spatial(
 
     X_list = []
     if mode == "windows":
-        if windows is None:
-            windows = _auto_windows(
-                size=auto_window_size,
-                step=auto_window_step,
-                tmin=tmin,
-                tmax=tmax,
-            )
+        windows = _auto_windows(
+            size=auto_window_size,
+            step=auto_window_step,
+            tmin=tmin,
+            tmax=tmax,
+        )
 
-            if (windows.ndim != 2) or (windows.shape[0] == 1):
-                raise ValueError(f"Two or more windows must be specified. {windows=}")
+        if (windows.ndim != 2) or (windows.shape[0] == 1):
+            raise ValueError(f"Two or more windows must be specified. {windows=}")
 
-        for window in windows:
-            X = _get_data(
-                data=data,
-                domain="spatial",
-                tmin=window[0],
-                tmax=window[1],
-                fmin=fmin,
-                fmax=fmax,
-                picks=None,
-            )
-
-            X_list.append(X)
-
-        X = np.array(X_list)
+        X = _get_data(
+            data=data,
+            domain="spatial",
+            windows=windows,
+            tmin=None,
+            tmax=None,
+            fmin=fmin,
+            fmax=fmax,
+            picks=None,
+        )
         # X.shape: n_windows, n_epochs, n_channels
 
         X = X.transpose(1, 0, 2)
@@ -189,7 +192,6 @@ def within_trial_spatial(
 
         X = X.transpose(0, 2, 1)
         # X.shape: n_epochs, n_windows, n_channels
-
     else:
         raise ValueError("mode must be 'windows' or 'all_samples'")
 
@@ -202,19 +204,15 @@ def within_trial_spatial(
         # X_trial.shape: n_windows, n_channels
 
         distances_trial = []
-        if metric == "angle":
-            mean = frechet_mean_angular(X_trial, verbosity=0)
 
-            for n in range(n_windows):
-                d = distance_angle(mean, X_trial[n, :])
-                distances_trial.append(d)
+        # shape: n_windows, n_channels
+        mean = callback_centroid(X_trial)
 
-        elif metric == "cosine":
-            mean = extrinsic_mean(X_trial)
-
-            for n in range(n_windows):
-                d = scipy.spatial.distance.cosine(mean, X_trial[n, :])
-                distances_trial.append(d)
+        for n in range(n_windows):
+            # mean.shape: n_channels,
+            # X_trial[n, :].shape: n_channels,
+            d = callback_distance(mean, X_trial[n, :])
+            distances_trial.append(d)
 
         dispersion = np.mean(distances_trial)
 
@@ -235,16 +233,17 @@ def within_trial_spatial(
 
 
 def between_trial_spatial(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute between-trial spatial variability from epoch-wise channel patterns.
@@ -318,6 +317,12 @@ def between_trial_spatial(
     if type_data not in ["EpochsTFR", "Epochs"]:
         raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
+    if callback_distance is None:
+        callback_distance = distance_angle
+
+    if callback_centroid is None:
+        callback_centroid = partial(frechet_mean_angular, verbosity=0)
+
     data = data.copy()
 
     if baseline is not None:
@@ -340,6 +345,8 @@ def between_trial_spatial(
 
     distances = []
 
+    """
+
     if metric == "cosine":
         mean = extrinsic_mean(X)
 
@@ -356,6 +363,17 @@ def between_trial_spatial(
 
     else:
         raise ValueError("metrics must be 'angle' or 'cosine'")
+    """
+
+    mean = callback_centroid(X)
+    # X.shape: n_epochs, n_channels
+    # mean.shape: n_channels,
+
+    for n in range(n_epochs):
+        # mean.shape: n_channels,
+        # X[n, :].shape: n_channels,
+        d = callback_distance(mean, X[n, :])
+        distances.append(d)
 
     if average:
         distances = np.array(distances)
@@ -373,16 +391,17 @@ def between_trial_spatial(
 
 
 def between_trial_group_spatial(
-    data,
-    centroid="mean",
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    metric="angle",
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        centroid=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute between-trial-group spatial variability from group-representative patterns.
@@ -476,6 +495,12 @@ def between_trial_group_spatial(
             "data must be an instance of list of Evoked or AverageTFR objects."
         )
 
+    if callback_distance is None:
+        callback_distance = distance_angle
+
+    if callback_centroid is None:
+        callback_centroid = partial(frechet_mean_angular, verbosity=0)
+
     data = [data[n].copy() for n in range(len(data))]
     if picks is not None:
         for n in range(len(data)):
@@ -494,18 +519,11 @@ def between_trial_group_spatial(
         )
         X_list.append(x)
 
-    if isinstance(centroid, str):
+    if centroid is None:
         data_centroid = None
-        match centroid:
-            case "mean":
-                if metric == "angle":
-                    X_centroid = frechet_mean_angular(X_list, verbosity=0)
-                elif metric == "cosine":
-                    X_centroid = extrinsic_mean(X_list)
-                else:
-                    raise ValueError("metrics must be 'angle' or 'cosine'")
-            case _:
-                raise NotImplementedError(f"centroid={centroid} is not implemented.")
+
+        # np.array(X_list).shape: (n_groups, n_channels)
+        X_centroid = callback_centroid(np.array(X_list))
     else:
         data_centroid = centroid
         type_data_centroid = _get_data_type(data_centroid)
@@ -536,6 +554,11 @@ def between_trial_group_spatial(
 
     distances = []
 
+    for X in X_list:
+        d = callback_distance(X, X_centroid)
+        distances.append(d)
+
+    """
     if metric == "cosine":
         for X in X_list:
             d = scipy.spatial.distance.cosine(X, X_centroid)
@@ -545,9 +568,9 @@ def between_trial_group_spatial(
         for X in X_list:
             d = distance_angle(X, X_centroid)
             distances.append(d)
-
     else:
         raise ValueError("metrics must be 'angle' or 'cosine'")
+    """
 
     if average:
         distances = np.array(distances)
