@@ -1,19 +1,12 @@
-import json
 import numpy as np
-import pandas as pd
 import mne
 
 from tslearn.metrics import dtw
-from tslearn.barycenters import (
-    euclidean_barycenter,
-    dtw_barycenter_averaging,
-    dtw_barycenter_averaging_subgradient,
-)
+from tslearn.barycenters import euclidean_barycenter
 
 from ..distances.distances import distance_squared_euclidean
 
 from ..utils.core import (
-    _add_values_to_df,
     _auto_windows,
     _get_data_type,
 )

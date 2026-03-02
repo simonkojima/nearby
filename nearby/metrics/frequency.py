@@ -1,16 +1,12 @@
-import json
 import numpy as np
-import pandas as pd
-import scipy
 import mne
 
 from functools import partial
 
 from ..distances import distance_angle
-from ..mean import extrinsic_mean, frechet_mean_angular
+from ..mean import frechet_mean_angular
 
 from ..utils.core import (
-    _add_values_to_df,
     _auto_windows,
     _get_data_type,
 )

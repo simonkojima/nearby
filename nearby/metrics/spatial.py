@@ -1,15 +1,11 @@
-import json
 from functools import partial
 import numpy as np
-import scipy
-import pandas as pd
 import mne
 
 from ..distances.distances import distance_angle
-from ..mean import extrinsic_mean, frechet_mean_angular
+from ..mean import frechet_mean_angular
 
 from ..utils.core import (
-    _add_values_to_df,
     _auto_windows,
     _get_data_type,
 )
@@ -494,8 +490,6 @@ def between_trial_group_spatial(
         X_list.append(x)
 
     if centroid is None:
-        data_centroid = None
-
         # np.array(X_list).shape: (n_groups, n_channels)
         X_centroid = callback_centroid(np.array(X_list))
     else:

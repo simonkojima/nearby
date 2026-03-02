@@ -1,7 +1,6 @@
 import numpy as np
-import pandas as pd
 
-from ..utils.core import _get_data_type, _add_values_to_df
+from ..utils.core import _get_data_type
 from ..utils.proc import _get_data, _apply_baseline
 
 
@@ -14,7 +13,6 @@ def mean_erds(
         tmax=None,
         picks=None,
         average=True,
-        additional_values=None,
 ):
     """
     Compute mean ERD/S values for each channel.
@@ -131,7 +129,7 @@ def mean_erds(
     else:
         mean = np.asarray(X)
 
-    return X
+    return mean
 
 
 def standard_deviation_erds(
@@ -143,7 +141,6 @@ def standard_deviation_erds(
         tmax=None,
         picks=None,
         ddof=1,
-        additional_values=None,
 ):
     """
         Compute the standard deviation of mean ERD/S values across trials.
