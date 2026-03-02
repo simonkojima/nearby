@@ -29,10 +29,9 @@ def within_trial_spatial(
         tmax=None,
         callback_distance=None,
         callback_centroid=None,
-        # metric="angle",
         picks=None,
         average=True,
-        additional_values=None,
+        return_centroid=False,
 ):
     """
     Compute within-trial spatial variability from time-resolved channel patterns.
@@ -197,7 +196,7 @@ def within_trial_spatial(
 
     n_epochs, n_windows, _ = X.shape
 
-    dispersions_list = []
+    dispersions_list, mean_list = [], []
 
     for idx_trial in range(n_epochs):
         X_trial = X[idx_trial, :, :].squeeze()
@@ -207,6 +206,8 @@ def within_trial_spatial(
 
         # shape: n_windows, n_channels
         mean = callback_centroid(X_trial)
+
+        mean_list.append(mean)
 
         for n in range(n_windows):
             # mean.shape: n_channels,
@@ -219,17 +220,14 @@ def within_trial_spatial(
         dispersions_list.append(dispersion)
 
     if average:
-        dispersions = np.mean(dispersions_list)
+        dispersion = np.mean(dispersions_list)
     else:
-        dispersions = json.dumps(dispersions_list)
+        dispersion = np.array(dispersions_list)
 
-    df = pd.DataFrame()
-    df["within_trial_spatial"] = [dispersions]
+    if return_centroid:
+        return dispersion, np.array(mean_list)
 
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return dispersion
 
 
 def between_trial_spatial(
@@ -243,7 +241,7 @@ def between_trial_spatial(
         callback_centroid=None,
         picks=None,
         average=True,
-        additional_values=None,
+        return_centroid=False,
 ):
     """
     Compute between-trial spatial variability from epoch-wise channel patterns.
@@ -345,26 +343,6 @@ def between_trial_spatial(
 
     distances = []
 
-    """
-
-    if metric == "cosine":
-        mean = extrinsic_mean(X)
-
-        for n in range(n_epochs):
-            d = scipy.spatial.distance.cosine(mean, X[n, :])
-            distances.append(d)
-
-    elif metric == "angle":
-        mean = frechet_mean_angular(X, verbosity=0)
-
-        for n in range(n_epochs):
-            d = distance_angle(mean, X[n, :])
-            distances.append(d)
-
-    else:
-        raise ValueError("metrics must be 'angle' or 'cosine'")
-    """
-
     mean = callback_centroid(X)
     # X.shape: n_epochs, n_channels
     # mean.shape: n_channels,
@@ -376,18 +354,14 @@ def between_trial_spatial(
         distances.append(d)
 
     if average:
-        distances = np.array(distances)
-        distances = distances.mean()
+        dispersion = np.mean(distances)
     else:
-        distances = json.dumps(distances)
+        dispersion = np.array(distances)
 
-    df = pd.DataFrame()
-    df["between_trial_spatial"] = [distances]
+    if return_centroid:
+        return dispersion, mean
 
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return dispersion
 
 
 def between_trial_group_spatial(
@@ -401,7 +375,7 @@ def between_trial_group_spatial(
         callback_centroid=None,
         picks=None,
         average=True,
-        additional_values=None,
+        return_centroid=False,
 ):
     """
     Compute between-trial-group spatial variability from group-representative patterns.
@@ -558,30 +532,12 @@ def between_trial_group_spatial(
         d = callback_distance(X, X_centroid)
         distances.append(d)
 
-    """
-    if metric == "cosine":
-        for X in X_list:
-            d = scipy.spatial.distance.cosine(X, X_centroid)
-            distances.append(d)
-
-    elif metric == "angle":
-        for X in X_list:
-            d = distance_angle(X, X_centroid)
-            distances.append(d)
-    else:
-        raise ValueError("metrics must be 'angle' or 'cosine'")
-    """
-
     if average:
-        distances = np.array(distances)
-        distances = distances.mean()
+        dispersion = np.mean(distances)
     else:
-        distances = json.dumps(distances)
+        dispersion = np.array(distances)
 
-    df = pd.DataFrame()
-    df["between_trial_group_spatial"] = [distances]
+    if return_centroid:
+        return dispersion, X_centroid
 
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return dispersion

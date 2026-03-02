@@ -2,18 +2,19 @@ import numpy as np
 import pandas as pd
 
 from ..utils.core import _get_data_type, _add_values_to_df
+from ..utils.proc import _get_data, _apply_baseline
 
 
 def mean_erds(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute mean ERD/S values for each channel.
@@ -111,56 +112,38 @@ def mean_erds(
     if picks is not None:
         data = data.pick(picks=picks)
 
-    df_dict = {"channel": [], "mean_erds": []}
-    for ch in data.ch_names:
+    X = _get_data(
+        data,
+        fmin=fmin,
+        fmax=fmax,
+        tmin=tmin,
+        tmax=tmax,
+        picks=picks,
+        domain="temporal",
+    )
+    # X.shape: n_epochs, n_times
 
-        if type_data == "EpochsTFR":
-            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-            # X.shape: n_epochs, n_channels, n_freqs, n_times
+    X = X.mean(1)
+    # X.shape: n_epochs
 
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_freqs, n_times
+    if average:
+        mean = X.mean(0)
+    else:
+        mean = np.asarray(X)
 
-            X = X.mean(1)
-            # X.shape: n_epochs, n_times
-
-        elif type_data == "Epochs":
-            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # data.shape: n_epochs, n_channels, n_times
-
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_times
-
-        mean = X.mean(1)
-        # X.shape: n_epochs
-
-        if average:
-            mean = mean.mean(0)
-        else:
-            mean = mean.tolist()
-            mean = json.dumps(mean)
-
-        df_dict["channel"].append(ch)
-        df_dict["mean_erds"].append(mean)
-
-    df = pd.DataFrame(df_dict)
-
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return X
 
 
 def standard_deviation_erds(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    ddof=1,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        ddof=1,
+        additional_values=None,
 ):
     """
         Compute the standard deviation of mean ERD/S values across trials.
@@ -234,47 +217,25 @@ def standard_deviation_erds(
 
     data = data.copy()
 
-    if baseline is not None:
-        if type_data == "EpochsTFR":
-            data = data.apply_baseline(baseline, "percent")
-        elif type_data == "Epochs":
-            data = data.apply_baseline(baseline)
+    data = _apply_baseline(data, baseline)
 
     if picks is not None:
         data = data.pick(picks=picks)
 
-    df_dict = {"channel": [], "standard_deviation_erds": []}
-    for ch in data.ch_names:
-        if type_data == "EpochsTFR":
-            X = data.get_data(fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, picks=ch)
-            # X.shape: n_epochs, n_channels, n_freqs, n_times
+    X = _get_data(
+        data,
+        fmin=fmin,
+        fmax=fmax,
+        tmin=tmin,
+        tmax=tmax,
+        picks=picks,
+        domain="temporal",
+    )
+    # X.shape: n_epochs, n_times
 
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_freqs, n_times
+    X = X.mean(1)
+    # X.shape: n_epochs
 
-            X = X.mean(1)
-            # X.shape: n_epochs, n_times
+    std = np.std(X, ddof=ddof)
 
-            X = X.mean(1)
-            # X.shape: n_epochs
-        elif type_data == "Epochs":
-            X = data.get_data(tmin=tmin, tmax=tmax, picks=ch, units="uV")
-            # X.shape: n_epochs, n_channels, n_times
-
-            X = np.squeeze(X)
-            # X.shape: n_epochs, n_times
-
-            X = X.mean(1)
-            # X.shape: n_epochs
-
-        std = np.std(X, ddof=ddof)
-
-        df_dict["channel"].append(ch)
-        df_dict["standard_deviation_erds"].append(std)
-
-    df = pd.DataFrame(df_dict)
-
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return std

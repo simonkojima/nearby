@@ -8,6 +8,7 @@ Example: Inter-Subjects Variability of ERDS in a motor-imagery task
 # License: BSD (3-clause)
 
 import mne
+import numpy as np
 import pandas as pd
 import nearby
 from moabb.datasets import Dreyer2023
@@ -109,10 +110,11 @@ M_right = mne.time_frequency.combine_tfr(
 # Between-Trial-Group Temporal Variability (BtwTrialGrpTemp)
 # ----------------------------------------------------------
 
-import importlib
-
-importlib.reload(nearby)
-importlib.reload(nearby.metrics)
+from tslearn.barycenters import (
+    euclidean_barycenter,
+    dtw_barycenter_averaging,
+    dtw_barycenter_averaging_subgradient,
+)
 
 btw_trial_grp_temp_left = nearby.metrics.between_trial_group_temporal(
     tfrs_left,
@@ -132,8 +134,8 @@ btw_trial_grp_temp_right = nearby.metrics.between_trial_group_temporal(
     picks="C3",
 )
 
-btw_trial_grp_temp = pd.concat([btw_trial_grp_temp_left, btw_trial_grp_temp_right])
-results["BtwTrialGrpTemp"] = btw_trial_grp_temp["between_trial_group_temporal"].mean()
+btw_trial_grp_temp = np.mean([btw_trial_grp_temp_left, btw_trial_grp_temp_right])
+results["BtwTrialGrpTemp"] = btw_trial_grp_temp
 print(f"BtwTrialGrpTemp: {results['BtwTrialGrpTemp']:.3f}")
 
 # %%
@@ -141,15 +143,23 @@ print(f"BtwTrialGrpTemp: {results['BtwTrialGrpTemp']:.3f}")
 # ---------------------------------------------------------
 
 btw_trial_grp_spat_left = nearby.metrics.between_trial_group_spatial(
-    tfrs_left, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metric="angle"
+    tfrs_left,
+    fmin=fmin,
+    fmax=fmax,
+    tmin=tmin,
+    tmax=tmax,
 )
 
 btw_trial_grp_spat_right = nearby.metrics.between_trial_group_spatial(
-    tfrs_right, fmin=fmin, fmax=fmax, tmin=tmin, tmax=tmax, metric="angle"
+    tfrs_right,
+    fmin=fmin,
+    fmax=fmax,
+    tmin=tmin,
+    tmax=tmax,
 )
 
-btw_trial_grp_spat = pd.concat([btw_trial_grp_spat_left, btw_trial_grp_spat_right])
-results["BtwTrialGrpSpat"] = btw_trial_grp_spat["between_trial_group_spatial"].mean()
+btw_trial_grp_spat = np.mean([btw_trial_grp_spat_left, btw_trial_grp_spat_right])
+results["BtwTrialGrpSpat"] = btw_trial_grp_spat
 print(f"BtwTrialGrpSpat: {results['BtwTrialGrpSpat']:.3f}")
 
 # %%
@@ -162,7 +172,6 @@ btw_trial_grp_freq_left = nearby.metrics.between_trial_group_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
     picks="C4",
 )
 
@@ -172,12 +181,11 @@ btw_trial_grp_freq_right = nearby.metrics.between_trial_group_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
     picks="C3",
 )
 
-btw_trial_grp_freq = pd.concat([btw_trial_grp_freq_left, btw_trial_grp_freq_right])
-results["BtwTrialGrpFreq"] = btw_trial_grp_freq["between_trial_group_frequency"].mean()
+btw_trial_grp_freq = np.mean([btw_trial_grp_freq_left, btw_trial_grp_freq_right])
+results["BtwTrialGrpFreq"] = btw_trial_grp_freq
 print(f"BtwTrialGrpFreq: {results['BtwTrialGrpFreq']:.3f}")
 
 # %%
@@ -211,12 +219,10 @@ btw_trial_grp_temp_tr_right = nearby.metrics.between_trial_group_temporal(
     picks="C3",
 )
 
-btw_trial_grp_temp_tr = pd.concat(
+btw_trial_grp_temp_tr = np.mean(
     [btw_trial_grp_temp_tr_left, btw_trial_grp_temp_tr_right]
 )
-results["BtwTrialGrpTemp-TR"] = btw_trial_grp_temp_tr[
-    "between_trial_group_temporal"
-].mean()
+results["BtwTrialGrpTemp-TR"] = btw_trial_grp_temp_tr
 print(f"BtwTrialGrpTemp-TR: {results['BtwTrialGrpTemp-TR']:.3f}")
 
 # %%
@@ -230,7 +236,6 @@ btw_trial_grp_spat_tr_left = nearby.metrics.between_trial_group_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
 )
 
 btw_trial_grp_spat_tr_right = nearby.metrics.between_trial_group_spatial(
@@ -240,47 +245,67 @@ btw_trial_grp_spat_tr_right = nearby.metrics.between_trial_group_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
 )
 
-btw_trial_grp_spat_tr = pd.concat(
+btw_trial_grp_spat_tr = np.mean(
     [btw_trial_grp_spat_tr_left, btw_trial_grp_spat_tr_right]
 )
-results["BtwTrialGrpSpat-TR"] = btw_trial_grp_spat_tr[
-    "between_trial_group_spatial"
-].mean()
+results["BtwTrialGrpSpat-TR"] = btw_trial_grp_spat_tr
 print(f"BtwTrialGrpSpat-TR: {results['BtwTrialGrpSpat-TR']:.3f}")
 
 # %%
 # Between-Trial-Group Frequency Variability - Test-User Referenced (BtwTrialGrpFreq-TR)
 # -------------------------------------------------------------------------------------
 
-btw_trial_grp_freq_tr_left = nearby.metrics.between_trial_group_frequency(
+btw_trial_grp_freq_tr_left_C3 = nearby.metrics.between_trial_group_frequency(
     tfrs_train_left,
     centroid=tfrs_dict["left_hand"][test_subject],
     fmin=fmin,
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
+    picks=["C3"],
 )
 
-btw_trial_grp_freq_tr_right = nearby.metrics.between_trial_group_frequency(
+btw_trial_grp_freq_tr_left_C4 = nearby.metrics.between_trial_group_frequency(
+    tfrs_train_left,
+    centroid=tfrs_dict["left_hand"][test_subject],
+    fmin=fmin,
+    fmax=fmax,
+    tmin=tmin,
+    tmax=tmax,
+    picks=["C4"],
+)
+
+btw_trial_grp_freq_tr_right_C3 = nearby.metrics.between_trial_group_frequency(
     tfrs_train_right,
     centroid=tfrs_dict["right_hand"][test_subject],
     fmin=fmin,
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
+    picks=["C3"],
 )
 
-btw_trial_grp_freq_tr = pd.concat(
-    [btw_trial_grp_freq_tr_left, btw_trial_grp_freq_tr_right]
+btw_trial_grp_freq_tr_right_C4 = nearby.metrics.between_trial_group_frequency(
+    tfrs_train_right,
+    centroid=tfrs_dict["right_hand"][test_subject],
+    fmin=fmin,
+    fmax=fmax,
+    tmin=tmin,
+    tmax=tmax,
+    picks=["C4"],
 )
-results["BtwTrialGrpFreq-TR"] = btw_trial_grp_freq_tr[
-    "between_trial_group_frequency"
-].mean()
+
+btw_trial_grp_freq_tr = np.mean(
+    [
+        btw_trial_grp_freq_tr_left_C3,
+        btw_trial_grp_freq_tr_left_C4,
+        btw_trial_grp_freq_tr_right_C3,
+        btw_trial_grp_freq_tr_right_C4,
+    ]
+)
+results["BtwTrialGrpFreq-TR"] = btw_trial_grp_freq_tr
 print(f"BtwTrialGrpFreq-TR: {results['BtwTrialGrpFreq-TR']:.3f}")
 
 # %%

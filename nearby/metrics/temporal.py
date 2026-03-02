@@ -35,7 +35,7 @@ def within_trial_temporal(
         tmax=None,
         picks=None,
         average=True,
-        additional_values=None,
+        return_centroid=False,
 ):
     """
     Compute Within-Trial Temporal (WiTrialTemp) Variability values.
@@ -162,7 +162,6 @@ def within_trial_temporal(
     if picks is not None:
         data = data.pick(picks=picks)
 
-    X_dict = {}
     if mode == "windows":
         windows = _auto_windows(
             size=auto_window_size,
@@ -174,78 +173,66 @@ def within_trial_temporal(
         if (windows.ndim != 2) or (windows.shape[0] == 1):
             raise ValueError(f"Two or more windows must be specified. {windows=}")
 
-        for ch in data.ch_names:
-            X = _get_data(
-                data=data,
-                domain="temporal",
-                windows=windows,
-                fmin=fmin,
-                fmax=fmax,
-                picks=ch,
-                tmin=None,
-                tmax=None,
-            )
-            # X.shape: n_windows, n_epochs, n_times
+        _X = _get_data(
+            data=data,
+            domain="temporal",
+            windows=windows,
+            fmin=fmin,
+            fmax=fmax,
+            picks=picks,
+            tmin=None,
+            tmax=None,
+        )
+        # X.shape: n_windows, n_epochs, n_times
 
-            X = X.transpose(1, 0, 2)
-            # X.shape: n_epochs, n_windows, n_times
-
-            X_dict[ch] = X
+        X = _X.transpose(1, 0, 2)
+        # X.shape: n_epochs, n_windows, n_times
 
     elif mode == "all_samples":
-        for ch in data.ch_names:
-            X = _get_data(
-                data=data,
-                domain="temporal",
-                fmin=fmin,
-                fmax=fmax,
-                picks=ch,
-                tmin=tmin,
-                tmax=tmax,
-            )
+        X = _get_data(
+            data=data,
+            domain="temporal",
+            fmin=fmin,
+            fmax=fmax,
+            picks=picks,
+            tmin=tmin,
+            tmax=tmax,
+        )
 
-            X = np.atleast_3d(X)
-            # X.shape: n_epochs, n_windows, n_times
-
-            X_dict[ch] = X
+        X = np.atleast_3d(X)
+        # X.shape: n_epochs, n_windows, n_times
 
     else:
         raise ValueError("mode must be 'windows' or 'all_samples'")
 
-    df_dict = {"channel": [], "within_trial_temporal": []}
-    for ch in data.ch_names:
-        n_epochs, n_windows, n_times = X_dict[ch].shape
+    # df_dict = {"channel": [], "within_trial_temporal": []}
+    n_epochs, n_windows, n_times = X.shape
 
-        dispersion = []
-        for idx_trial in range(n_epochs):
-            X_trial = X_dict[ch][idx_trial, :, :]
-            # X_trial.shape: n_windows, n_times
+    dispersion, mean_list = [], []
+    for idx_trial in range(n_epochs):
+        X_trial = X[idx_trial, :, :]
+        # X_trial.shape: n_windows, n_times
 
-            mean = callback_centroid(X_trial)
+        mean = callback_centroid(X_trial)
 
-            distances_trial = []
-            for n in range(n_windows):
-                d = callback_distance(X_trial[n, :], mean)
-                distances_trial.append(d)
+        distances_trial = []
+        for n in range(n_windows):
+            d = callback_distance(X_trial[n, :], mean)
+            distances_trial.append(d)
 
-            dispersion_within_trial = np.mean(distances_trial)
+        dispersion_within_trial = np.mean(distances_trial)
 
-            dispersion.append(dispersion_within_trial)
+        dispersion.append(dispersion_within_trial)
 
-        if average:
-            dispersion = np.mean(dispersion)
-        else:
-            dispersion = json.dumps(dispersion)
+    if average:
+        dispersion = np.mean(dispersion)
+    else:
+        dispersion = np.array(dispersion)
 
-        df_dict["channel"].append(ch)
-        df_dict["within_trial_temporal"].append(dispersion)
+    if return_centroid:
+        return dispersion, np.array(mean_list)
 
-    df = pd.DataFrame(df_dict)
-
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return dispersion
 
 
 def between_trial_temporal(
@@ -259,7 +246,7 @@ def between_trial_temporal(
         callback_distance=None,
         callback_centroid=None,
         average=True,
-        additional_values=None,
+        return_centroid=False,
 ):
     """
     Compute between-trial temporal variability using DTW distances to a mean.
@@ -364,52 +351,44 @@ def between_trial_temporal(
     if picks is not None:
         data = data.pick(picks=picks)
 
-    df_dict = {"channel": [], "between_trial_temporal": []}
-    for ch in data.ch_names:
-        X = _get_data(
-            data=data,
-            domain="temporal",
-            tmin=tmin,
-            tmax=tmax,
-            fmin=fmin,
-            fmax=fmax,
-            picks=ch,
-        )
+    X = _get_data(
+        data=data,
+        domain="temporal",
+        tmin=tmin,
+        tmax=tmax,
+        fmin=fmin,
+        fmax=fmax,
+        picks=picks,
+    )
 
-        mean = callback_centroid(X)
+    mean = callback_centroid(X)
+    # mean.shape: n_times, 1
+
+    n_epochs = X.shape[0]
+
+    scores = []
+    for m in range(n_epochs):
+        x = X[m, None].T
+
+        # x.shape: n_times, 1
         # mean.shape: n_times, 1
+        score = callback_distance(x, mean)
+        scores.append(score)
 
-        n_epochs = X.shape[0]
+    if average:
+        dispersion = np.mean(scores)
+    else:
+        dispersion = np.array(scores)
 
-        scores = []
-        for m in range(n_epochs):
-            x = X[m, None].T
+    if return_centroid:
+        return dispersion, mean
 
-            # x.shape: n_times, 1
-            # mean.shape: n_times, 1
-            score = callback_distance(x, mean)
-            scores.append(score)
-
-        if average:
-            scores = np.array(scores)
-            scores = scores.mean()
-        else:
-            scores = json.dumps(scores)
-
-        df_dict["channel"].append(ch)
-        df_dict["between_trial_temporal"].append(scores)
-
-    df = pd.DataFrame(df_dict)
-
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return dispersion
 
 
 def between_trial_group_temporal(
         data,
-        centroid="mean",
+        centroid=None,
         fmin=None,
         fmax=None,
         tmin=None,
@@ -417,8 +396,8 @@ def between_trial_group_temporal(
         picks=None,
         callback_distance=None,
         callback_centroid=None,
-        additional_values=None,
         average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial-group temporal variability using DTW distances to a centroid.
@@ -520,7 +499,9 @@ def between_trial_group_temporal(
             "data must be an instance of list of Evoked or AverageTFR objects."
         )
 
-    if not isinstance(centroid, str):
+    if centroid is None:
+        data_centroid = None
+    else:
         data_centroid = centroid
 
         type_data_centroid = _get_data_type(data_centroid)
@@ -537,10 +518,6 @@ def between_trial_group_temporal(
         data_centroid = data_centroid.copy()
         if picks is not None:
             data_centroid = data_centroid.pick(picks=picks)
-    else:
-        if centroid not in ["mean"]:
-            raise ValueError(f"Invalid centroid: {centroid}")
-        data_centroid = None
 
     if callback_distance is None:
         callback_distance = dtw
@@ -554,55 +531,46 @@ def between_trial_group_temporal(
         for n in range(len(data)):
             data[n] = data[n].pick(picks=picks)
 
-    df_dict = {"channel": [], "between_trial_group_temporal": []}
-    for ch in data[0].ch_names:
-        X_list = []
-        for n in range(len(data)):
-            x = _get_data(
-                data=data[n],
-                domain="temporal",
-                tmin=tmin,
-                tmax=tmax,
-                fmin=fmin,
-                fmax=fmax,
-                picks=ch,
-            )
-            X_list.append(x)
-        if data_centroid is not None:
-            X_centroid = _get_data(
-                data=data_centroid,
-                domain="temporal",
-                tmin=tmin,
-                tmax=tmax,
-                fmin=fmin,
-                fmax=fmax,
-                picks=ch,
-            )
-        elif data_centroid is None:
-            X_centroid = callback_centroid(np.array(X_list))
+    X_list = []
+    for n in range(len(data)):
+        x = _get_data(
+            data=data[n],
+            domain="temporal",
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            picks=picks,
+        )
+        X_list.append(x)
 
-        scores = []
-        for X in X_list:
-            # np.atleast_2d(X).T: n_times, 1
-            # X_centroid.shape: n_times, 1
+    if data_centroid is not None:
+        X_centroid = _get_data(
+            data=data_centroid,
+            domain="temporal",
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            picks=picks,
+        )
+    elif data_centroid is None:
+        X_centroid = callback_centroid(np.array(X_list))
 
-            X = np.atleast_2d(X).T
-            # score = dtw(X, X_centroid, **params_dtw)
-            score = callback_distance(X, X_centroid)
-            scores.append(score)
+    scores = []
+    for X in X_list:
+        # np.atleast_2d(X).T: n_times, 1
+        # X_centroid.shape: n_times, 1
+        X = np.atleast_2d(X).T
+        score = callback_distance(X, X_centroid)
+        scores.append(score)
 
-        if average:
-            scores = np.array(scores)
-            scores = scores.mean()
-        else:
-            scores = json.dumps(scores)
+    if average:
+        dispersion = np.mean(scores)
+    else:
+        dispersion = np.array(scores)
 
-        df_dict["channel"].append(ch)
-        df_dict["between_trial_group_temporal"].append(scores)
+    if return_centroid:
+        return dispersion, X_centroid
 
-    df = pd.DataFrame(df_dict)
-
-    if additional_values is not None:
-        df = _add_values_to_df(df, additional_values)
-
-    return df
+    return dispersion

@@ -6,13 +6,14 @@ from ..utils.core import _add_values_to_df
 
 
 def class_stability(
-    epochs=None,
-    covs=None,
-    tmin=None,
-    tmax=None,
-    centroid="mean",
-    estimator="scm",
-    additional_values=None,
+        epochs=None,
+        covs=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        centroid="mean",
+        estimator="scm",
+        additional_values=None,
 ):
     """
     Compute a Riemannian geometry-based class stability score.
@@ -85,7 +86,7 @@ def class_stability(
 
     if (epochs is not None) and (covs is None):
         covs = pyriemann.estimation.Covariances(estimator=estimator).fit_transform(
-            epochs.get_data(units="uV", tmin=tmin, tmax=tmax)
+            epochs.get_data(units="uV", tmin=tmin, tmax=tmax, picks=picks)
         )
 
     covs = np.array(covs)
@@ -116,10 +117,4 @@ def class_stability(
 
     stability = 1 / (1 + dispersion)
 
-    results = {"class_stability": stability}
-    df = pd.DataFrame(results, index=[0])
-
-    if additional_values is not None:
-        df = add_values_to_df(df, additional_values)
-
-    return df
+    return stability
