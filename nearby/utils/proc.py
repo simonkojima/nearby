@@ -1,3 +1,4 @@
+import numpy as np
 from .core import _get_data_type
 
 
@@ -32,7 +33,6 @@ def _get_frequency_epochs_tfr(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_temporal_epochs(data, tmin, tmax, fmin, fmax, picks):
-
     X = data.get_data(tmin=tmin, tmax=tmax, picks=picks, units="uV")
     # X.shape: n_epochs, n_channels, n_times
 
@@ -53,7 +53,6 @@ def _get_spatial_epochs(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_temporal_average_tfr(data, tmin, tmax, fmin, fmax, picks):
-
     X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
     # X.shape: n_channels, n_freqs, n_times
 
@@ -64,7 +63,6 @@ def _get_temporal_average_tfr(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_spatial_average_tfr(data, tmin, tmax, fmin, fmax, picks):
-
     X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
     # X.shape: n_channels, n_freqs, n_times
 
@@ -75,7 +73,6 @@ def _get_spatial_average_tfr(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_frequency_average_tfr(data, tmin, tmax, fmin, fmax, picks):
-
     X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
     # X.shape: n_channels, n_freqs, n_times
 
@@ -96,7 +93,6 @@ def _get_temporal_evoked(data, tmin, tmax, fmin, fmax, picks):
 
 
 def _get_spatial_evoked(data, tmin, tmax, fmin, fmax, picks):
-
     X = data.get_data(tmin=tmin, tmax=tmax, picks=picks, units="uV")
     # X.shape: n_channels, n_times
 
@@ -128,7 +124,7 @@ _GETTERS = {
 }
 
 
-def _get_data(data, domain, tmin, tmax, fmin, fmax, picks):
+def _get_data(data, domain, fmin, fmax, picks, tmin=None, tmax=None, windows=None):
     type_data = _get_data_type(data)
 
     try:
@@ -138,7 +134,43 @@ def _get_data(data, domain, tmin, tmax, fmin, fmax, picks):
             f"Unsupported combination: type={type_data}, domain={domain}"
         ) from e
 
-    return func(data=data, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
+    if windows is not None:
+        if (windows.ndim != 2) or (windows.shape[0] == 1):
+            raise ValueError(f"Two or more windows must be specified. {windows=}")
+
+        if (tmin is not None) or (tmax is not None):
+            raise ValueError(
+                "tmin and tmax cannot be specified when windows are specified."
+            )
+
+        X_list = []
+        for idx, window in enumerate(windows):
+            # get window length as number of sample from the first window
+            # use the same number of samples for the later windows
+            if idx == 0:
+                Nt = data.time_as_index(window[1])[0] - data.time_as_index(window[0])[0]
+
+            X = func(
+                data=data,
+                tmin=window[0],
+                tmax=window[1] + (1 / data.info["sfreq"]),
+                fmin=fmin,
+                fmax=fmax,
+                picks=picks,
+            )
+            X = X[:, 0:Nt]
+
+            X_list.append(X)
+
+        return np.array(X_list)
+
+    if (tmin is not None) or (tmax is not None):
+        if (tmin is None) or (tmax is None):
+            raise ValueError(
+                "tmin and tmax must be specified when windows are not specified."
+            )
+
+        return func(data=data, tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
 
 
 def _apply_baseline(data, baseline):

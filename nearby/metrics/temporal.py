@@ -10,7 +10,7 @@ from tslearn.barycenters import (
     dtw_barycenter_averaging_subgradient,
 )
 
-from ..distances import distance_squared_euclidean
+from ..distances.distances import distance_squared_euclidean
 
 from ..utils.core import (
     _add_values_to_df,
@@ -27,9 +27,10 @@ def within_trial_temporal(
         fmin=None,
         fmax=None,
         mode="windows",
-        windows=None,
         auto_window_size=0.1,
         auto_window_step=0.1,
+        callback_distance=None,
+        callback_centroid=None,
         tmin=None,
         tmax=None,
         picks=None,
@@ -136,6 +137,23 @@ def within_trial_temporal(
     if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
         raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
 
+    def _callback_centroid_default(X):
+        # X.shape: n_windows, n_times
+        return X.mean(1).mean(0)
+
+    def _callback_distance_default(X, M):
+        # X.shape: n_times
+        # M: scaler
+
+        # take mean over n_times in the given window
+        return distance_squared_euclidean(X.mean(0), M)
+
+    if callback_distance is None:
+        callback_distance = _callback_distance_default
+
+    if callback_centroid is None:
+        callback_centroid = _callback_centroid_default
+
     data = data.copy()
 
     if baseline is not None:
@@ -146,80 +164,49 @@ def within_trial_temporal(
 
     X_dict = {}
     if mode == "windows":
-        if windows is None:
-            windows = _auto_windows(
-                size=auto_window_size,
-                step=auto_window_step,
+        windows = _auto_windows(
+            size=auto_window_size,
+            step=auto_window_step,
+            tmin=tmin,
+            tmax=tmax,
+        )
+
+        if (windows.ndim != 2) or (windows.shape[0] == 1):
+            raise ValueError(f"Two or more windows must be specified. {windows=}")
+
+        for ch in data.ch_names:
+            X = _get_data(
+                data=data,
+                domain="temporal",
+                windows=windows,
+                fmin=fmin,
+                fmax=fmax,
+                picks=ch,
+                tmin=None,
+                tmax=None,
+            )
+            # X.shape: n_windows, n_epochs, n_times
+
+            X = X.transpose(1, 0, 2)
+            # X.shape: n_epochs, n_windows, n_times
+
+            X_dict[ch] = X
+
+    elif mode == "all_samples":
+        for ch in data.ch_names:
+            X = _get_data(
+                data=data,
+                domain="temporal",
+                fmin=fmin,
+                fmax=fmax,
+                picks=ch,
                 tmin=tmin,
                 tmax=tmax,
             )
 
-            if (windows.ndim != 2) or (windows.shape[0] == 1):
-                raise ValueError(f"Two or more windows must be specified. {windows=}")
+            X = np.atleast_3d(X)
+            # X.shape: n_epochs, n_windows, n_times
 
-        for ch in data.ch_names:
-            X_dict[ch] = []
-            for window in windows:
-                if type_data == "EpochsTFR":
-                    X = data.get_data(
-                        tmin=window[0], tmax=window[1], fmin=fmin, fmax=fmax, picks=ch
-                    )
-                    # X.shape: n_epochs, n_channels, n_freqs, n_times
-
-                    X = X.squeeze()
-                    # X.shape: n_epochs, n_freqs, n_times
-
-                    X = X.mean(1)
-                    # X.shape: n_epochs, n_times
-
-                    X = X.mean(1)
-                    # X.shape: n_epochs
-
-                    X_dict[ch].append(X)
-
-                elif type_data == "Epochs":
-                    X = data.get_data(
-                        tmin=window[0], tmax=window[1], units="uV", picks=ch
-                    )
-                    # X.shape: n_epochs, n_channels, n_times
-
-                    X = X.squeeze()
-                    # X.shape: n_epochs, n_times
-
-                    X = X.mean(1)
-                    # X.shape: n_epochs
-
-                    X_dict[ch].append(X)
-
-            X_dict[ch] = np.array(X_dict[ch])
-            # X.shape: n_windows, n_epochs
-
-            X_dict[ch] = X_dict[ch].transpose(1, 0)
-            # X.shape: n_epochs, n_windows
-
-    elif mode == "all_samples":
-        for ch in data.ch_names:
-            X_dict[ch] = []
-            if type_data == "EpochsTFR":
-                X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=ch)
-                # data.shape: n_epochs, n_channels, n_freqs, n_times
-
-                X = X.squeeze()
-                # X.shape: n_epochs, n_freqs, n_times
-
-                X = X.mean(1)
-                # X.shape: n_epochs, n_times
-
-            elif type_data == "Epochs":
-
-                X = data.get_data(tmin=tmin, tmax=tmax, units="uV", picks=ch)
-                # X.shape: n_epochs, n_channels, n_times
-
-                X = X.squeeze()
-                # X.shape: n_epochs, n_times
-
-            # In all_samples mode, n_times is equal to the number of windows
-            # X.shape: n_epochs, n_windows
             X_dict[ch] = X
 
     else:
@@ -227,18 +214,18 @@ def within_trial_temporal(
 
     df_dict = {"channel": [], "within_trial_temporal": []}
     for ch in data.ch_names:
-        n_epochs, n_windows = X_dict[ch].shape
+        n_epochs, n_windows, n_times = X_dict[ch].shape
 
         dispersion = []
         for idx_trial in range(n_epochs):
-            X_trial = X_dict[ch][idx_trial, :].squeeze()
-            # X_trial.shape: n_windows
+            X_trial = X_dict[ch][idx_trial, :, :]
+            # X_trial.shape: n_windows, n_times
 
-            mean = X_trial.mean(0)
+            mean = callback_centroid(X_trial)
 
             distances_trial = []
             for n in range(n_windows):
-                d = distance_squared_euclidean(X_trial[n], mean)
+                d = callback_distance(X_trial[n, :], mean)
                 distances_trial.append(d)
 
             dispersion_within_trial = np.mean(distances_trial)
@@ -262,18 +249,17 @@ def within_trial_temporal(
 
 
 def between_trial_temporal(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    barycenter="dba",
-    params_barycenter=None,
-    params_dtw=None,
-    average=True,
-    additional_values=None,
+        data,
+        baseline=None,
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        callback_distance=None,
+        callback_centroid=None,
+        average=True,
+        additional_values=None,
 ):
     """
     Compute between-trial temporal variability using DTW distances to a mean.
@@ -357,22 +343,18 @@ def between_trial_temporal(
             ``n_epochs``.
     """
 
-    if params_barycenter is None:
-        params_barycenter = {}
-    else:
-        params_barycenter = params_barycenter.copy()
-
-    if params_dtw is None:
-        params_dtw = {}
-    else:
-        params_dtw = params_dtw.copy()
-
     type_data = _get_data_type(data)
 
     if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
         raise ValueError(
             "between_trial_temporal is only implemented for EpochsTFR or Epochs objects."
         )
+
+    if callback_distance is None:
+        callback_distance = dtw
+
+    if callback_centroid is None:
+        callback_centroid = euclidean_barycenter
 
     data = data.copy()
 
@@ -394,25 +376,18 @@ def between_trial_temporal(
             picks=ch,
         )
 
-        match barycenter:
-            case "dba":
-                mean = dtw_barycenter_averaging(X, **params_barycenter)
-            case "dba_subgradient":
-                mean = dtw_barycenter_averaging_subgradient(X, **params_barycenter)
-            case "euclidean":
-                mean = euclidean_barycenter(X, **params_barycenter)
-            case _:
-                raise ValueError(f"Invalid barycenter method: {barycenter}")
-
-            # mean.shape: n_times, 1
+        mean = callback_centroid(X)
+        # mean.shape: n_times, 1
 
         n_epochs = X.shape[0]
 
         scores = []
         for m in range(n_epochs):
-            # X[m, None].shape: n_times, 1
+            x = X[m, None].T
+
+            # x.shape: n_times, 1
             # mean.shape: n_times, 1
-            score = dtw(X[m, None].T, mean, **params_dtw)
+            score = callback_distance(x, mean)
             scores.append(score)
 
         if average:
@@ -433,18 +408,17 @@ def between_trial_temporal(
 
 
 def between_trial_group_temporal(
-    data,
-    centroid="mean",
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    barycenter="dba",
-    params_barycenter=None,
-    params_dtw=None,
-    additional_values=None,
-    average=True,
+        data,
+        centroid="mean",
+        fmin=None,
+        fmax=None,
+        tmin=None,
+        tmax=None,
+        picks=None,
+        callback_distance=None,
+        callback_centroid=None,
+        additional_values=None,
+        average=True,
 ):
     """
     Compute between-trial-group temporal variability using DTW distances to a centroid.
@@ -539,16 +513,6 @@ def between_trial_group_temporal(
       (e.g., averages) rather than between single-trial epochs.
     """
 
-    if params_barycenter is None:
-        params_barycenter = {}
-    else:
-        params_barycenter = params_barycenter.copy()
-
-    if params_dtw is None:
-        params_dtw = {}
-    else:
-        params_dtw = params_dtw.copy()
-
     type_data = _get_data_type(data)
 
     if type_data not in ["list_Evoked", "list_AverageTFR"]:
@@ -577,6 +541,12 @@ def between_trial_group_temporal(
         if centroid not in ["mean"]:
             raise ValueError(f"Invalid centroid: {centroid}")
         data_centroid = None
+
+    if callback_distance is None:
+        callback_distance = dtw
+
+    if callback_centroid is None:
+        callback_centroid = euclidean_barycenter
 
     data = [data[n].copy() for n in range(len(data))]
 
@@ -608,23 +578,8 @@ def between_trial_group_temporal(
                 fmax=fmax,
                 picks=ch,
             )
-
-        if data_centroid is None:
-            match barycenter:
-                case "dba":
-                    X_centroid = dtw_barycenter_averaging(
-                        np.array(X_list), **params_barycenter
-                    )
-                case "dba_subgradient":
-                    X_centroid = dtw_barycenter_averaging_subgradient(
-                        np.array(X_list), **params_barycenter
-                    )
-                case "euclidean":
-                    X_centroid = euclidean_barycenter(
-                        np.array(X_list), **params_barycenter
-                    )
-                case _:
-                    raise ValueError(f"Invalid barycenter method: {barycenter}")
+        elif data_centroid is None:
+            X_centroid = callback_centroid(np.array(X_list))
 
         scores = []
         for X in X_list:
@@ -632,7 +587,8 @@ def between_trial_group_temporal(
             # X_centroid.shape: n_times, 1
 
             X = np.atleast_2d(X).T
-            score = dtw(X, X_centroid, **params_dtw)
+            # score = dtw(X, X_centroid, **params_dtw)
+            score = callback_distance(X, X_centroid)
             scores.append(score)
 
         if average:
