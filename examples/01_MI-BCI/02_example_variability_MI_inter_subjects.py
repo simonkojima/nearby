@@ -110,12 +110,6 @@ M_right = mne.time_frequency.combine_tfr(
 # Between-Trial-Group Temporal Variability (BtwTrialGrpTemp)
 # ----------------------------------------------------------
 
-from tslearn.barycenters import (
-    euclidean_barycenter,
-    dtw_barycenter_averaging,
-    dtw_barycenter_averaging_subgradient,
-)
-
 btw_trial_grp_temp_left = nearby.metrics.between_trial_group_temporal(
     tfrs_left,
     fmin=fmin,

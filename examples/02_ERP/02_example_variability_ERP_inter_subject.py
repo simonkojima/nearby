@@ -102,7 +102,7 @@ btw_trial_grp_temp = nearby.metrics.between_trial_group_temporal(
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["BtwTrialGrpTemp"] = btw_trial_grp_temp["between_trial_group_temporal"].mean()
+results["BtwTrialGrpTemp"] = btw_trial_grp_temp
 print(f"BtwTrialGrpTemp: {results['BtwTrialGrpTemp']:.3f}")
 
 # %%
@@ -113,10 +113,9 @@ btw_trial_grp_spat = nearby.metrics.between_trial_group_spatial(
     evoked_list,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
 )
 
-results["BtwTrialGrpSpat"] = btw_trial_grp_spat["between_trial_group_spatial"].mean()
+results["BtwTrialGrpSpat"] = btw_trial_grp_spat
 print(f"BtwTrialGrpSpat: {results['BtwTrialGrpSpat']:.3f}")
 
 # %%
@@ -127,11 +126,10 @@ btw_trial_grp_freq = nearby.metrics.between_trial_group_frequency(
     tfrs_list,
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["BtwTrialGrpFreq"] = btw_trial_grp_freq["between_trial_group_frequency"].mean()
+results["BtwTrialGrpFreq"] = btw_trial_grp_freq
 print(f"BtwTrialGrpFreq: {results['BtwTrialGrpFreq']:.3f}")
 
 # %%
@@ -153,9 +151,7 @@ btw_trial_grp_temp_tr = nearby.metrics.between_trial_group_temporal(
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["BtwTrialGrpTemp-TR"] = btw_trial_grp_temp_tr[
-    "between_trial_group_temporal"
-].mean()
+results["BtwTrialGrpTemp-TR"] = btw_trial_grp_temp_tr
 print(f"BtwTrialGrpTemp-TR: {results['BtwTrialGrpTemp-TR']:.3f}")
 
 # %%
@@ -167,12 +163,9 @@ btw_trial_grp_spat_tr = nearby.metrics.between_trial_group_spatial(
     centroid=evoked_dict[test_subject],
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
 )
 
-results["BtwTrialGrpSpat-TR"] = btw_trial_grp_spat_tr[
-    "between_trial_group_spatial"
-].mean()
+results["BtwTrialGrpSpat-TR"] = btw_trial_grp_spat_tr
 print(f"BtwTrialGrpSpat-TR: {results['BtwTrialGrpSpat-TR']:.3f}")
 
 # %%
@@ -184,13 +177,10 @@ btw_trial_grp_freq_tr = nearby.metrics.between_trial_group_frequency(
     centroid=tfrs_dict[test_subject],
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["BtwTrialGrpFreq-TR"] = btw_trial_grp_freq_tr[
-    "between_trial_group_frequency"
-].mean()
+results["BtwTrialGrpFreq-TR"] = btw_trial_grp_freq_tr
 print(f"BtwTrialGrpFreq-TR: {results['BtwTrialGrpFreq-TR']:.3f}")
 
 # %%

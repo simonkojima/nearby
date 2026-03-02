@@ -175,12 +175,6 @@ print(f"WiTrialFreq: {wi_trial_freq:.3f}")
 # Between-Trial Temporal Variability (BtwTrialTemp)
 # -------------------------------------------------
 
-from tslearn.barycenters import (
-    euclidean_barycenter,
-    dtw_barycenter_averaging,
-    dtw_barycenter_averaging_subgradient,
-)
-
 btw_trial_temp_left = nearby.metrics.between_trial_temporal(
     tfrs["left_hand"],
     fmin=fmin,
@@ -188,7 +182,6 @@ btw_trial_temp_left = nearby.metrics.between_trial_temporal(
     tmin=tmin,
     tmax=tmax,
     picks="C4",
-    # callback_centroid=dtw_barycenter_averaging,
 )
 btw_trial_temp_right = nearby.metrics.between_trial_temporal(
     tfrs["right_hand"],
@@ -197,7 +190,6 @@ btw_trial_temp_right = nearby.metrics.between_trial_temporal(
     tmin=tmin,
     tmax=tmax,
     picks="C3",
-    # callback_centroid=dtw_barycenter_averaging,
 )
 
 btw_trial_temp = np.mean([btw_trial_temp_left, btw_trial_temp_right])

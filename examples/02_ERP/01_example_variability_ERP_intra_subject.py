@@ -84,8 +84,7 @@ wi_trial_temp = nearby.metrics.within_trial_temporal(
     tmax=tmax,
     picks=["Cz", "CPz", "Pz"],
 )
-
-results["WiTrialTemp"] = wi_trial_temp["within_trial_temporal"].mean()
+results["WiTrialTemp"] = wi_trial_temp
 print(f"WiTrialTemp: {results['WiTrialTemp']:.3f}")
 
 # %%
@@ -98,10 +97,9 @@ wi_trial_spat = nearby.metrics.within_trial_spatial(
     tmax=tmax,
     auto_window_size=0.05,
     auto_window_step=0.05,
-    metric="angle",
 )
 
-results["WiTrialSpat"] = wi_trial_spat["within_trial_spatial"].mean()
+results["WiTrialSpat"] = wi_trial_spat
 print(f"WiTrialSpat: {results['WiTrialSpat']:.3f}")
 
 # %%
@@ -114,11 +112,10 @@ wi_trial_freq = nearby.metrics.within_trial_frequency(
     tmax=tmax,
     auto_window_size=0.05,
     auto_window_step=0.05,
-    metric="angle",
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["WiTrialFreq"] = wi_trial_freq["within_trial_frequency"].mean()
+results["WiTrialFreq"] = wi_trial_freq
 print(f"WiTrialFreq: {results['WiTrialFreq']:.3f}")
 
 # %%
@@ -136,7 +133,7 @@ btw_trial_temp = nearby.metrics.between_trial_temporal(
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["BtwTrialTemp"] = btw_trial_temp["between_trial_temporal"].mean()
+results["BtwTrialTemp"] = btw_trial_temp
 print(f"BtwTrialTemp: {results['BtwTrialTemp']:.3f}")
 
 # %%
@@ -147,10 +144,9 @@ btw_trial_spat = nearby.metrics.between_trial_spatial(
     epochs["Target"],
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
 )
 
-results["BtwTrialSpat"] = btw_trial_spat["between_trial_spatial"].mean()
+results["BtwTrialSpat"] = btw_trial_spat
 print(f"BtwTrialSpat: {results['BtwTrialSpat']:.3f}")
 
 # %%
@@ -161,11 +157,10 @@ btw_trial_freq = nearby.metrics.between_trial_frequency(
     tfrs["Target"],
     tmin=tmin,
     tmax=tmax,
-    metric="angle",
     picks=["Cz", "CPz", "Pz"],
 )
 
-results["BtwTrialFreq"] = btw_trial_freq["between_trial_frequency"].mean()
+results["BtwTrialFreq"] = btw_trial_freq
 print(f"BtwTrialFreq: {results['BtwTrialFreq']:.3f}")
 
 # %%
