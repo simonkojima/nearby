@@ -138,6 +138,7 @@ def within_trial_temporal(
         # M: scaler
 
         # take mean over n_times in the given window
+        # and return the squared euclidean distance
         return distance_squared_euclidean(X.mean(0), M)
 
     if callback_distance is None:

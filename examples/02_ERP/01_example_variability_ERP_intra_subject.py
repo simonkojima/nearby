@@ -82,6 +82,8 @@ wi_trial_temp = nearby.metrics.within_trial_temporal(
     epochs["Target"],
     tmin=tmin,
     tmax=tmax,
+    window_size=0.05,
+    window_step=0.05,
     picks=["Cz", "CPz", "Pz"],
 )
 results["WiTrialTemp"] = wi_trial_temp
@@ -95,8 +97,8 @@ wi_trial_spat = nearby.metrics.within_trial_spatial(
     epochs["Target"],
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=0.05,
-    auto_window_step=0.05,
+    window_size=0.05,
+    window_step=0.05,
 )
 
 results["WiTrialSpat"] = wi_trial_spat
@@ -110,8 +112,8 @@ wi_trial_freq = nearby.metrics.within_trial_frequency(
     tfrs["Target"],
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=0.05,
-    auto_window_step=0.05,
+    window_size=0.05,
+    window_step=0.05,
     picks=["Cz", "CPz", "Pz"],
 )
 
