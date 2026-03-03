@@ -15,20 +15,20 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_frequency(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    callback_distance=None,
-    callback_centroid=None,
-    picks=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        mode="windows",
+        window_size=0.1,
+        window_step=0.1,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute within-trial frequency variability.
@@ -64,10 +64,10 @@ def within_trial_frequency(
         - ``"all_samples"``: use each time sample as a frequency vector (no time
           window averaging).
 
-    auto_window_size : float, default=0.1
+    window_size : float, default=0.1
         Window length (seconds) used when ``mode="windows"``.
 
-    auto_window_step : float, default=0.1
+    window_step : float, default=0.1
         Step size (seconds) used when ``mode="windows"``.
 
     tmin, tmax : float | None, optional
@@ -128,16 +128,16 @@ def within_trial_frequency(
 
     data = data.copy()
 
-    if baseline is not None:
-        data = _apply_baseline(data, baseline)
-
     if picks is not None:
         data = data.pick(picks=picks)
 
+    if baseline is not None:
+        data = _apply_baseline(data, baseline)
+
     if mode == "windows":
         windows = _auto_windows(
-            size=auto_window_size,
-            step=auto_window_step,
+            size=window_size,
+            step=window_step,
             tmin=tmin,
             tmax=tmax,
         )
@@ -178,17 +178,17 @@ def within_trial_frequency(
 
     n_epochs, n_windows, _ = X.shape
 
-    dispersion, mean_list = [], []
+    dispersion, centroid_list = [], []
     for idx_trial in range(n_epochs):
         X_trial = X[idx_trial, :, :].squeeze()
         # X_trial.shape: n_windows, n_freqs
 
-        mean = callback_centroid(X_trial)
-        mean_list.append(mean)
+        centroid = callback_centroid(X_trial)
+        centroid_list.append(centroid)
 
         distances_trial = []
         for n in range(n_windows):
-            d = callback_distance(mean, X_trial[n, :])
+            d = callback_distance(X_trial[n, :], centroid)
             distances_trial.append(d)
 
         dispersion_within_trial = np.mean(distances_trial)
@@ -201,23 +201,23 @@ def within_trial_frequency(
         dispersion = np.array(dispersion)
 
     if return_centroid:
-        return dispersion, np.array(mean_list)
+        return dispersion, np.array(centroid_list)
 
     return dispersion
 
 
 def between_trial_frequency(
-    data,
-    baseline=None,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    callback_distance=None,
-    callback_centroid=None,
-    picks=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial frequency variability.
@@ -299,13 +299,11 @@ def between_trial_frequency(
 
     data = data.copy()
 
-    if baseline is not None:
-        data = _apply_baseline(data, baseline)
-
     if picks is not None:
         data = data.pick(picks=picks)
 
-    df_dict = {"channel": [], "between_trial_frequency": []}
+    if baseline is not None:
+        data = _apply_baseline(data, baseline)
 
     X = _get_data(
         data=data,
@@ -321,10 +319,10 @@ def between_trial_frequency(
 
     distances = []
 
-    mean = callback_centroid(X, verbosity=0)
+    centroid = callback_centroid(X)
 
     for n in range(n_epochs):
-        d = callback_distance(mean, X[n, :])
+        d = callback_distance(X[n, :], centroid)
         distances.append(d)
 
     if average:
@@ -333,23 +331,24 @@ def between_trial_frequency(
         dispersion = np.array(distances)
 
     if return_centroid:
-        return dispersion, mean
+        return dispersion, centroid
 
     return dispersion
 
 
 def between_trial_group_frequency(
-    data,
-    centroid=None,
-    tmin=None,
-    tmax=None,
-    fmin=None,
-    fmax=None,
-    picks=None,
-    callback_distance=None,
-    callback_centroid=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        centroid=None,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial-group frequency variability.
@@ -422,6 +421,7 @@ def between_trial_group_frequency(
       ``callback_distance`` / ``callback_centroid``.
     """
     type_data = _get_data_type(data)
+
     if not (type_data == "list_AverageTFR"):
         raise ValueError("data must be an instance of list of AverageTFR objects.")
 
@@ -437,18 +437,9 @@ def between_trial_group_frequency(
         for n in range(len(data)):
             data[n] = data[n].pick(picks=picks)
 
-    if centroid is None:
-        data_centroid = None
-    else:
-        data_centroid = centroid
-        type_data_centroid = _get_data_type(data_centroid)
-
-        if type_data_centroid != "AverageTFR":
-            raise ValueError("centroid must be an instance of AverageTFR objects.")
-
-        data_centroid = data_centroid.copy()
-        if picks is not None:
-            data_centroid = data_centroid.pick(picks=picks)
+    if baseline is not None:
+        for n in range(len(data)):
+            data[n] = _apply_baseline(data[n], baseline)
 
     X_list = []
     for n in range(len(data)):
@@ -463,9 +454,23 @@ def between_trial_group_frequency(
         )
         X_list.append(x)
 
-    if data_centroid is not None:
+    if centroid is None:
+        X_centroid = callback_centroid(np.array(X_list))
+    else:
+        type_data_centroid = _get_data_type(centroid)
+
+        if type_data_centroid != "AverageTFR":
+            raise ValueError("centroid must be an instance of AverageTFR objects.")
+
+        centroid = centroid.copy()
+
+        if picks is not None:
+            centroid = centroid.pick(picks=picks)
+        if baseline is not None:
+            centroid = _apply_baseline(centroid, baseline)
+
         X_centroid = _get_data(
-            data=data_centroid,
+            data=centroid,
             domain="frequency",
             tmin=tmin,
             tmax=tmax,
@@ -473,11 +478,8 @@ def between_trial_group_frequency(
             fmax=fmax,
             picks=picks,
         )
-    else:
-        X_centroid = callback_centroid(np.array(X_list))
 
     distances = []
-
     for X in X_list:
         d = callback_distance(X, X_centroid)
         distances.append(d)

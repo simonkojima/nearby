@@ -14,20 +14,20 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_spatial(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    tmin=None,
-    tmax=None,
-    callback_distance=None,
-    callback_centroid=None,
-    picks=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        mode="windows",
+        window_size=0.1,
+        window_step=0.1,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute within-trial spatial variability.
@@ -67,10 +67,10 @@ def within_trial_spatial(
         - ``"all_samples"``: use each time sample as a spatial vector (no window
           averaging). For TFR input, frequency is still averaged first.
 
-    auto_window_size : float, default=0.1
+    window_size : float, default=0.1
         Window length (seconds) used when ``mode="windows"``.
 
-    auto_window_step : float, default=0.1
+    window_step : float, default=0.1
         Step size (seconds) used when ``mode="windows"``.
 
     tmin, tmax : float | None, optional
@@ -130,17 +130,16 @@ def within_trial_spatial(
 
     data = data.copy()
 
-    if baseline is not None:
-        data = _apply_baseline(data, baseline)
-
     if picks is not None:
         data = data.pick(picks=picks)
 
-    X_list = []
+    if baseline is not None:
+        data = _apply_baseline(data, baseline)
+
     if mode == "windows":
         windows = _auto_windows(
-            size=auto_window_size,
-            step=auto_window_step,
+            size=window_size,
+            step=window_step,
             tmin=tmin,
             tmax=tmax,
         )
@@ -156,7 +155,7 @@ def within_trial_spatial(
             tmax=None,
             fmin=fmin,
             fmax=fmax,
-            picks=None,
+            picks=picks,
         )
         # X.shape: n_windows, n_epochs, n_channels
 
@@ -165,13 +164,13 @@ def within_trial_spatial(
 
     elif mode == "all_samples":
         if type_data == "EpochsTFR":
-            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax)
+            X = data.get_data(tmin=tmin, tmax=tmax, fmin=fmin, fmax=fmax, picks=picks)
             # X.shape: n_epochs, n_channels, n_freqs, n_times
 
             X = X.mean(2)
             # X.shape: n_epochs, n_channels, n_times
         elif type_data == "Epochs":
-            X = data.get_data(tmin=tmin, tmax=tmax, units="uV")
+            X = data.get_data(tmin=tmin, tmax=tmax, units="uV", picks=picks)
             # X.shape: n_epochs, n_channels, n_times
 
         # In all_samples mode, n_times is equal to the number of windows
@@ -184,7 +183,7 @@ def within_trial_spatial(
 
     n_epochs, n_windows, _ = X.shape
 
-    dispersions_list, mean_list = [], []
+    dispersions_list, centroid_list = [], []
 
     for idx_trial in range(n_epochs):
         X_trial = X[idx_trial, :, :].squeeze()
@@ -193,14 +192,13 @@ def within_trial_spatial(
         distances_trial = []
 
         # shape: n_windows, n_channels
-        mean = callback_centroid(X_trial)
-
-        mean_list.append(mean)
+        centroid = callback_centroid(X_trial)
+        centroid_list.append(centroid)
 
         for n in range(n_windows):
             # mean.shape: n_channels,
             # X_trial[n, :].shape: n_channels,
-            d = callback_distance(mean, X_trial[n, :])
+            d = callback_distance(X_trial[n, :], centroid)
             distances_trial.append(d)
 
         dispersion = np.mean(distances_trial)
@@ -213,23 +211,23 @@ def within_trial_spatial(
         dispersion = np.array(dispersions_list)
 
     if return_centroid:
-        return dispersion, np.array(mean_list)
+        return dispersion, np.array(centroid_list)
 
     return dispersion
 
 
 def between_trial_spatial(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    callback_distance=None,
-    callback_centroid=None,
-    picks=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial spatial variability.
@@ -312,11 +310,11 @@ def between_trial_spatial(
 
     data = data.copy()
 
-    if baseline is not None:
-        data = _apply_baseline(data, baseline)
-
     if picks is not None:
         data = data.pick(picks=picks)
+
+    if baseline is not None:
+        data = _apply_baseline(data, baseline)
 
     X = _get_data(
         data=data,
@@ -325,21 +323,21 @@ def between_trial_spatial(
         tmax=tmax,
         fmin=fmin,
         fmax=fmax,
-        picks=None,
+        picks=picks,
     )
 
     n_epochs, _ = X.shape
 
     distances = []
 
-    mean = callback_centroid(X)
+    centroid = callback_centroid(X)
     # X.shape: n_epochs, n_channels
-    # mean.shape: n_channels,
+    # centroid.shape: n_channels,
 
     for n in range(n_epochs):
-        # mean.shape: n_channels,
+        # centroid.shape: n_channels,
         # X[n, :].shape: n_channels,
-        d = callback_distance(mean, X[n, :])
+        d = callback_distance(X[n, :], centroid)
         distances.append(d)
 
     if average:
@@ -348,23 +346,24 @@ def between_trial_spatial(
         dispersion = np.array(distances)
 
     if return_centroid:
-        return dispersion, mean
+        return dispersion, centroid
 
     return dispersion
 
 
 def between_trial_group_spatial(
-    data,
-    centroid=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    callback_distance=None,
-    callback_centroid=None,
-    picks=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        centroid=None,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial-group spatial variability.
@@ -449,9 +448,14 @@ def between_trial_group_spatial(
         callback_centroid = partial(frechet_mean_angular, verbosity=0)
 
     data = [data[n].copy() for n in range(len(data))]
+
     if picks is not None:
         for n in range(len(data)):
             data[n] = data[n].pick(picks=picks)
+
+    if baseline is not None:
+        for n in range(len(data)):
+            data[n] = _apply_baseline(data[n], baseline)
 
     X_list = []
     for n in range(len(data)):
@@ -462,7 +466,7 @@ def between_trial_group_spatial(
             tmax=tmax,
             fmin=fmin,
             fmax=fmax,
-            picks=None,
+            picks=picks,
         )
         X_list.append(x)
 
@@ -470,8 +474,7 @@ def between_trial_group_spatial(
         # np.array(X_list).shape: (n_groups, n_channels)
         X_centroid = callback_centroid(np.array(X_list))
     else:
-        data_centroid = centroid
-        type_data_centroid = _get_data_type(data_centroid)
+        type_data_centroid = _get_data_type(centroid)
         if type_data_centroid not in ["Evoked", "AverageTFR"]:
             raise ValueError(
                 "centroid must be an instance of Evoked or AverageTFR objects."
@@ -482,19 +485,22 @@ def between_trial_group_spatial(
             # while type_data_centroid expect "Evoked" or "AverageTFR"
             raise ValueError("centroid and data must be of the same type.")
 
-        data_centroid = data_centroid.copy()
+        centroid = centroid.copy()
 
         if picks is not None:
-            data_centroid = data_centroid.pick(picks=picks)
+            centroid = centroid.pick(picks=picks)
+
+        if baseline is not None:
+            centroid = _apply_baseline(centroid, baseline)
 
         X_centroid = _get_data(
-            data=data_centroid,
+            data=centroid,
             domain="spatial",
             tmin=tmin,
             tmax=tmax,
             fmin=fmin,
             fmax=fmax,
-            picks=None,
+            picks=picks,
         )
 
     distances = []

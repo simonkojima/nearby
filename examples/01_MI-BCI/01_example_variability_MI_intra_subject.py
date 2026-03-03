@@ -91,8 +91,8 @@ wi_trial_temp_left = nearby.metrics.within_trial_temporal(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=1,
-    auto_window_step=1,
+    window_size=1,
+    window_step=1,
     picks="C4",
 )
 wi_trial_temp_right = nearby.metrics.within_trial_temporal(
@@ -101,8 +101,8 @@ wi_trial_temp_right = nearby.metrics.within_trial_temporal(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=1,
-    auto_window_step=1,
+    window_size=1,
+    window_step=1,
     picks="C3",
 )
 
@@ -120,8 +120,8 @@ wi_trial_spat_left = nearby.metrics.within_trial_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=1,
-    auto_window_step=1,
+    window_size=1,
+    window_step=1,
 )
 wi_trial_spat_right = nearby.metrics.within_trial_spatial(
     tfrs["right_hand"],
@@ -129,8 +129,8 @@ wi_trial_spat_right = nearby.metrics.within_trial_spatial(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=1,
-    auto_window_step=1,
+    window_size=1,
+    window_step=1,
 )
 
 wi_trial_spat = np.mean([wi_trial_spat_left, wi_trial_spat_right])
@@ -146,8 +146,8 @@ wi_trial_freq_left = nearby.metrics.within_trial_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=1,
-    auto_window_step=1,
+    window_size=1,
+    window_step=1,
     picks="C4",
 )
 
@@ -157,8 +157,8 @@ wi_trial_freq_right = nearby.metrics.within_trial_frequency(
     fmax=fmax,
     tmin=tmin,
     tmax=tmax,
-    auto_window_size=1,
-    auto_window_step=1,
+    window_size=1,
+    window_step=1,
     picks="C3",
 )
 

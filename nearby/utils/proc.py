@@ -176,12 +176,14 @@ def _get_data(data, domain, fmin, fmax, picks, tmin=None, tmax=None, windows=Non
 def _apply_baseline(data, baseline):
     type_data = _get_data_type(data)
 
-    if not ((type_data == "EpochsTFR") or (type_data == "Epochs")):
-        raise ValueError("data must be an instance of EpochsTFR or Epochs objects.")
+    accept_types = ["EpochsTFR", "Epochs", "AverageTFR", "Evoked"]
 
-    if type_data == "EpochsTFR":
+    if not type_data in accept_types:
+        raise ValueError(f"data must be an instance of {accept_types}. {type_data=}")
+
+    if type_data in ["EpochsTFR", "AverageTFR"]:
         data = data.apply_baseline(baseline, "percent")
-    elif type_data == "Epochs":
+    elif type_data == ["Epochs", "Evoked"]:
         data = data.apply_baseline(baseline)
 
     return data

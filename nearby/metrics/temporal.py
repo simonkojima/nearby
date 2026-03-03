@@ -15,20 +15,20 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_temporal(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    mode="windows",
-    auto_window_size=0.1,
-    auto_window_step=0.1,
-    callback_distance=None,
-    callback_centroid=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        mode="windows",
+        window_size=0.1,
+        window_step=0.1,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute within-trial temporal variability.
@@ -70,10 +70,10 @@ def within_trial_temporal(
         - ``"all_samples"``: represent each epoch by the full sample-wise time course
           (optionally cropped to ``[tmin, tmax]``).
 
-    auto_window_size : float, default=0.1
+    window_size : float, default=0.1
         Window length in seconds used when ``mode="windows"``.
 
-    auto_window_step : float, default=0.1
+    window_step : float, default=0.1
         Step size in seconds used when ``mode="windows"``.
 
     callback_distance : callable | None, optional
@@ -156,8 +156,8 @@ def within_trial_temporal(
 
     if mode == "windows":
         windows = _auto_windows(
-            size=auto_window_size,
-            step=auto_window_step,
+            size=window_size,
+            step=window_step,
             tmin=tmin,
             tmax=tmax,
         )
@@ -197,19 +197,19 @@ def within_trial_temporal(
     else:
         raise ValueError("mode must be 'windows' or 'all_samples'")
 
-    # df_dict = {"channel": [], "within_trial_temporal": []}
     n_epochs, n_windows, n_times = X.shape
 
-    dispersion, mean_list = [], []
+    dispersion, centroid_list = [], []
     for idx_trial in range(n_epochs):
         X_trial = X[idx_trial, :, :]
         # X_trial.shape: n_windows, n_times
 
-        mean = callback_centroid(X_trial)
+        centroid = callback_centroid(X_trial)
+        centroid_list.append(centroid)
 
         distances_trial = []
         for n in range(n_windows):
-            d = callback_distance(X_trial[n, :], mean)
+            d = callback_distance(X_trial[n, :], centroid)
             distances_trial.append(d)
 
         dispersion_within_trial = np.mean(distances_trial)
@@ -222,23 +222,23 @@ def within_trial_temporal(
         dispersion = np.array(dispersion)
 
     if return_centroid:
-        return dispersion, np.array(mean_list)
+        return dispersion, np.array(centroid_list)
 
     return dispersion
 
 
 def between_trial_temporal(
-    data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    callback_distance=None,
-    callback_centroid=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial temporal variability.
@@ -344,43 +344,44 @@ def between_trial_temporal(
         picks=picks,
     )
 
-    mean = callback_centroid(X)
+    centroid = callback_centroid(X)
     # mean.shape: n_times, 1
 
     n_epochs = X.shape[0]
 
-    scores = []
+    distances = []
     for m in range(n_epochs):
         x = X[m, None].T
 
         # x.shape: n_times, 1
-        # mean.shape: n_times, 1
-        score = callback_distance(x, mean)
-        scores.append(score)
+        # centroid.shape: n_times, 1
+        d = callback_distance(x, centroid)
+        distances.append(d)
 
     if average:
-        dispersion = np.mean(scores)
+        dispersion = np.mean(distances)
     else:
-        dispersion = np.array(scores)
+        dispersion = np.array(distances)
 
     if return_centroid:
-        return dispersion, mean
+        return dispersion, centroid
 
     return dispersion
 
 
 def between_trial_group_temporal(
-    data,
-    centroid=None,
-    fmin=None,
-    fmax=None,
-    tmin=None,
-    tmax=None,
-    picks=None,
-    callback_distance=None,
-    callback_centroid=None,
-    average=True,
-    return_centroid=False,
+        data,
+        tmin=None,
+        tmax=None,
+        fmin=None,
+        fmax=None,
+        callback_distance=None,
+        callback_centroid=None,
+        centroid=None,
+        picks=None,
+        baseline=None,
+        average=True,
+        return_centroid=False,
 ):
     """
     Compute between-trial-group temporal variability.
@@ -466,26 +467,6 @@ def between_trial_group_temporal(
             "data must be an instance of list of Evoked or AverageTFR objects."
         )
 
-    if centroid is None:
-        data_centroid = None
-    else:
-        data_centroid = centroid
-
-        type_data_centroid = _get_data_type(data_centroid)
-        if type_data_centroid not in ["Evoked", "AverageTFR"]:
-            raise ValueError(
-                "centroid must be an instance of Evoked or AverageTFR objects."
-            )
-
-        if type_data_centroid not in type_data:
-            # type_data expect "list_Evoked" or "list_AverageTFR"
-            # while type_data_centroid expect "Evoked" or "AverageTFR"
-            raise ValueError("centroid and data must be of the same type.")
-
-        data_centroid = data_centroid.copy()
-        if picks is not None:
-            data_centroid = data_centroid.pick(picks=picks)
-
     if callback_distance is None:
         callback_distance = dtw
 
@@ -497,6 +478,10 @@ def between_trial_group_temporal(
     if picks is not None:
         for n in range(len(data)):
             data[n] = data[n].pick(picks=picks)
+
+    if baseline is not None:
+        for n in range(len(data)):
+            data[n] = _apply_baseline(data[n], baseline)
 
     X_list = []
     for n in range(len(data)):
@@ -511,9 +496,29 @@ def between_trial_group_temporal(
         )
         X_list.append(x)
 
-    if data_centroid is not None:
+    if centroid is None:
+        X_centroid = callback_centroid(np.array(X_list))
+    else:
+        type_data_centroid = _get_data_type(centroid)
+        if type_data_centroid not in ["Evoked", "AverageTFR"]:
+            raise ValueError(
+                "centroid must be an instance of Evoked or AverageTFR objects."
+            )
+
+        if type_data_centroid not in type_data:
+            # type_data expect "list_Evoked" or "list_AverageTFR"
+            # while type_data_centroid expect "Evoked" or "AverageTFR"
+            raise ValueError("centroid and data must be of the same type.")
+
+        centroid = centroid.copy()
+
+        if picks is not None:
+            centroid = centroid.pick(picks=picks)
+        if baseline is not None:
+            centroid = _apply_baseline(centroid, baseline)
+
         X_centroid = _get_data(
-            data=data_centroid,
+            data=centroid,
             domain="temporal",
             tmin=tmin,
             tmax=tmax,
@@ -521,21 +526,19 @@ def between_trial_group_temporal(
             fmax=fmax,
             picks=picks,
         )
-    elif data_centroid is None:
-        X_centroid = callback_centroid(np.array(X_list))
 
-    scores = []
+    distances = []
     for X in X_list:
         # np.atleast_2d(X).T: n_times, 1
         # X_centroid.shape: n_times, 1
         X = np.atleast_2d(X).T
-        score = callback_distance(X, X_centroid)
-        scores.append(score)
+        d = callback_distance(X, X_centroid)
+        distances.append(d)
 
     if average:
-        dispersion = np.mean(scores)
+        dispersion = np.mean(distances)
     else:
-        dispersion = np.array(scores)
+        dispersion = np.array(distances)
 
     if return_centroid:
         return dispersion, X_centroid
