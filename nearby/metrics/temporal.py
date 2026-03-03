@@ -15,20 +15,20 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_temporal(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        mode="windows",
-        auto_window_size=0.1,
-        auto_window_step=0.1,
-        callback_distance=None,
-        callback_centroid=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
-        return_centroid=False,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    mode="windows",
+    auto_window_size=0.1,
+    auto_window_step=0.1,
+    callback_distance=None,
+    callback_centroid=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
+    return_centroid=False,
 ):
     """
     Compute within-trial temporal variability.
@@ -228,17 +228,17 @@ def within_trial_temporal(
 
 
 def between_trial_temporal(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        callback_distance=None,
-        callback_centroid=None,
-        average=True,
-        return_centroid=False,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    callback_distance=None,
+    callback_centroid=None,
+    average=True,
+    return_centroid=False,
 ):
     """
     Compute between-trial temporal variability.
@@ -370,17 +370,17 @@ def between_trial_temporal(
 
 
 def between_trial_group_temporal(
-        data,
-        centroid=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        callback_distance=None,
-        callback_centroid=None,
-        average=True,
-        return_centroid=False,
+    data,
+    centroid=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    callback_distance=None,
+    callback_centroid=None,
+    average=True,
+    return_centroid=False,
 ):
     """
     Compute between-trial-group temporal variability.

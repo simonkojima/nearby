@@ -3,13 +3,13 @@ import pyriemann
 
 
 def class_stability(
-        epochs=None,
-        covs=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        centroid=None,
-        estimator="scm",
+    epochs=None,
+    covs=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    centroid=None,
+    estimator="scm",
 ):
     """
     Compute a Riemannian geometry-based class stability score.

@@ -5,14 +5,14 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def mean_erds(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        average=True,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    average=True,
 ):
     """
     Compute mean ERD/S amplitude per channel.
@@ -118,14 +118,14 @@ def mean_erds(
 
 
 def standard_deviation_erds(
-        data,
-        baseline=None,
-        fmin=None,
-        fmax=None,
-        tmin=None,
-        tmax=None,
-        picks=None,
-        ddof=1,
+    data,
+    baseline=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    picks=None,
+    ddof=1,
 ):
     """
 
