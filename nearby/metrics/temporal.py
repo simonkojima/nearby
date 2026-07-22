@@ -52,14 +52,27 @@ def within_trial_temporal(
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
         Epoched MNE object.
 
-    baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing the metric.
+    tmin, tmax : float | None, optional
+        Time bounds (seconds) used to select the time region of interest. Applied
+        during data extraction.
 
     fmin, fmax : float | None, optional
         Lower and upper frequency bounds (Hz). Only used when ``data`` is
         :class:`~mne.time_frequency.tfr.EpochsTFR`. If provided, the extracted data
         are restricted to the band ``[fmin, fmax]``.
+
+    callback_distance : callable | None, optional
+        Distance function used to compare a segment/sample to the within-epoch
+        centroid. The callable must accept ``(x, m)`` where ``x`` is a 1D array
+        representing one segment/sample and ``m`` is the centroid value returned by
+        ``callback_centroid``.
+        If ``None``, a default squared Euclidean distance between the segment mean
+        and centroid is used.
+
+    callback_centroid : callable | None, optional
+        Function used to compute a within-epoch centroid from the per-epoch matrix
+        ``X_trial`` of shape ``(n_windows, n_times)``.
+        If ``None``, a default centroid computed from window/time averages is used.
 
     mode : {"windows", "all_samples"}, default="windows"
         Temporal representation used within each epoch.
@@ -76,30 +89,18 @@ def within_trial_temporal(
     window_step : float, default=0.1
         Step size in seconds used when ``mode="windows"``.
 
-    callback_distance : callable | None, optional
-        Distance function used to compare a segment/sample to the within-epoch
-        centroid. The callable must accept ``(x, m)`` where ``x`` is a 1D array
-        representing one segment/sample and ``m`` is the centroid value returned by
-        ``callback_centroid``.
-        If ``None``, a default squared Euclidean distance between the segment mean
-        and centroid is used.
-
-    callback_centroid : callable | None, optional
-        Function used to compute a within-epoch centroid from the per-epoch matrix
-        ``X_trial`` of shape ``(n_windows, n_times)``.
-        If ``None``, a default centroid computed from window/time averages is used.
-
-    tmin, tmax : float | None, optional
-        Time bounds (seconds) used to select the time region of interest. Applied
-        during data extraction.
-
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.Epochs.pick` /
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
 
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
+        For, :class:`mne.EpochsTFR` object, ``mode = "percent"`` is used.
+
     average : bool, default=True
         If ``True``, return a scalar averaged across epochs. If ``False``, return the
-        per-epoch dispersion values as an array of shape ``(n_epochs,)``.
+        array (shape of ``(n_epochs, )``) contains distances from each data points to centroid.
 
     return_centroid : bool, default=False
         If ``True``, also return the per-epoch centroid values.
@@ -264,21 +265,13 @@ def between_trial_temporal(
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
         Epoched MNE object.
 
-    baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing the metric.
-
-    fmin, fmax : float | None, optional
-        Lower and upper frequency bounds (Hz). Only used when ``data`` is
-        :class:`~mne.time_frequency.tfr.EpochsTFR`.
-
     tmin, tmax : float | None, optional
         Time bounds (seconds) used to crop the extracted time courses to
         ``[tmin, tmax]``.
 
-    picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Passed to :meth:`mne.Epochs.pick` /
-        :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+    fmin, fmax : float | None, optional
+        Lower and upper frequency bounds (Hz). Only used when ``data`` is
+        :class:`~mne.time_frequency.tfr.EpochsTFR`.
 
     callback_distance : callable | None, optional
         Distance function comparing one epoch time course to the centroid.
@@ -288,6 +281,14 @@ def between_trial_temporal(
     callback_centroid : callable | None, optional
         Function computing a centroid from the stacked epoch time courses ``X``.
         If ``None``, uses :func:`tslearn.barycenters.euclidean_barycenter`.
+
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Passed to :meth:`mne.Epochs.pick` /
+        :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar mean distance across epochs. If ``False``, return
@@ -405,6 +406,23 @@ def between_trial_group_temporal(
         List of group-representative MNE objects. All entries must be of the same
         type.
 
+    tmin, tmax : float | None, optional
+        Time bounds (seconds) used to crop all extracted time courses to
+        ``[tmin, tmax]``.
+
+    fmin, fmax : float | None, optional
+        Lower and upper frequency bounds (Hz). Only used when ``data`` contains
+        :class:`~mne.time_frequency.tfr.AverageTFR`.
+
+    callback_distance : callable | None, optional
+        Distance function comparing one group time course to the centroid. Must
+        accept ``(x, m)`` where both inputs are array-like time series.
+        If ``None``, uses :func:`tslearn.metrics.dtw`.
+
+    callback_centroid : callable | None, optional
+        Function computing a centroid from the stacked group time courses.
+        If ``None``, uses :func:`tslearn.barycenters.euclidean_barycenter`.
+
     centroid : {"mean"} | mne.Evoked | mne.time_frequency.tfr.AverageTFR | None, optional
         Definition of the reference centroid waveform.
 
@@ -415,26 +433,13 @@ def between_trial_group_temporal(
         - Any provided centroid object must match the type of the objects in
           ``data``.
 
-    fmin, fmax : float | None, optional
-        Lower and upper frequency bounds (Hz). Only used when ``data`` contains
-        :class:`~mne.time_frequency.tfr.AverageTFR`.
-
-    tmin, tmax : float | None, optional
-        Time bounds (seconds) used to crop all extracted time courses to
-        ``[tmin, tmax]``.
-
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Applied to the centroid (if provided as an object) and
         to every element in ``data``. If ``None``, all channels are used.
 
-    callback_distance : callable | None, optional
-        Distance function comparing one group time course to the centroid. Must
-        accept ``(x, m)`` where both inputs are array-like time series.
-        If ``None``, uses :func:`tslearn.metrics.dtw`.
-
-    callback_centroid : callable | None, optional
-        Function computing a centroid from the stacked group time courses.
-        If ``None``, uses :func:`tslearn.barycenters.euclidean_barycenter`.
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar mean distance across groups. If ``False``,

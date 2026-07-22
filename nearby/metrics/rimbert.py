@@ -6,12 +6,12 @@ from ..utils.proc import _get_data, _apply_baseline
 
 def mean_erds(
     data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
     tmin=None,
     tmax=None,
+    fmin=None,
+    fmax=None,
     picks=None,
+    baseline=None,
     average=True,
 ):
     """
@@ -119,13 +119,13 @@ def mean_erds(
 
 def standard_deviation_erds(
     data,
-    baseline=None,
-    fmin=None,
-    fmax=None,
     tmin=None,
     tmax=None,
-    picks=None,
+    fmin=None,
+    fmax=None,
     ddof=1,
+    picks=None,
+    baseline=None,
 ):
     """
 

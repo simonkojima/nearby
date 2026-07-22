@@ -11,14 +11,27 @@ license = { file = "LICENSE" }
 dynamic = ["version"]
 
 authors = [
-    { name = "Simon Kojima, Alex Pepi" },
+    { name = "Simon Kojima, Alex Pepi, Fabien Lotte" },
 ]
 
 dependencies = [
     "numpy",
-    "scipy",
     "mne>=1.8",
     "pandas",
+    "autograd",
+    "pymanopt",
+    "tslearn>=0.9.0",
+    "pyriemann",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "sphinx",
+    "pydata-sphinx-theme",
+    "sphinx-multiversion",
+    "sphinx-gallery",
+    "numpydoc",
 ]
 
 [tool.setuptools.dynamic]

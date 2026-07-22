@@ -14,20 +14,20 @@ from ..utils.proc import _get_data, _apply_baseline
 
 
 def within_trial_spatial(
-        data,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        callback_distance=None,
-        callback_centroid=None,
-        mode="windows",
-        window_size=0.1,
-        window_step=0.1,
-        picks=None,
-        baseline=None,
-        average=True,
-        return_centroid=False,
+    data,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    callback_distance=None,
+    callback_centroid=None,
+    mode="windows",
+    window_size=0.1,
+    window_step=0.1,
+    picks=None,
+    baseline=None,
+    average=True,
+    return_centroid=False,
 ):
     """
     Compute within-trial spatial variability.
@@ -51,13 +51,23 @@ def within_trial_spatial(
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
         Epoched MNE object.
 
-    baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing the metric.
+    tmin, tmax : float | None, optional
+        Time bounds (seconds) used to select the region of interest. Applied during
+        data extraction (and thus affects the number of windows/samples).
 
     fmin, fmax : float | None, optional
         Lower and upper frequency bounds (Hz). Only used when ``data`` is
         :class:`~mne.time_frequency.tfr.EpochsTFR`.
+
+    callback_distance : callable | None, optional
+        Distance function comparing two spatial vectors of shape ``(n_channels,)``.
+        If ``None``, uses :func:`nearby.distances.distances.distance_angle`.
+
+    callback_centroid : callable | None, optional
+        Function computing a centroid spatial vector from an epoch-specific matrix
+        ``X_trial`` of shape ``(n_windows, n_channels)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     mode : {"windows", "all_samples"}, default="windows"
         Temporal sampling strategy for spatial patterns.
@@ -73,23 +83,13 @@ def within_trial_spatial(
     window_step : float, default=0.1
         Step size (seconds) used when ``mode="windows"``.
 
-    tmin, tmax : float | None, optional
-        Time bounds (seconds) used to select the region of interest. Applied during
-        data extraction (and thus affects the number of windows/samples).
-
-    callback_distance : callable | None, optional
-        Distance function comparing two spatial vectors of shape ``(n_channels,)``.
-        If ``None``, uses :func:`nearby.distances.distances.distance_angle`.
-
-    callback_centroid : callable | None, optional
-        Function computing a centroid spatial vector from an epoch-specific matrix
-        ``X_trial`` of shape ``(n_windows, n_channels)``.
-        If ``None``, uses an angular Fréchet mean via
-        ``partial(frechet_mean_angular, verbosity=0)``.
-
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.Epochs.pick` /
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar averaged across epochs. If ``False``, return the
@@ -217,17 +217,17 @@ def within_trial_spatial(
 
 
 def between_trial_spatial(
-        data,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        callback_distance=None,
-        callback_centroid=None,
-        picks=None,
-        baseline=None,
-        average=True,
-        return_centroid=False,
+    data,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    callback_distance=None,
+    callback_centroid=None,
+    picks=None,
+    baseline=None,
+    average=True,
+    return_centroid=False,
 ):
     """
     Compute between-trial spatial variability.
@@ -248,17 +248,13 @@ def between_trial_spatial(
     data : mne.epochs.Epochs | mne.time_frequency.tfr.EpochsTFR
         Epoched MNE object.
 
-    baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing the metric.
+    tmin, tmax : float | None, optional
+        Time bounds (seconds) used to crop the data to ``[tmin, tmax]`` prior to
+        averaging over time.
 
     fmin, fmax : float | None, optional
         Lower and upper frequency bounds (Hz). Only used when ``data`` is
         :class:`~mne.time_frequency.tfr.EpochsTFR`.
-
-    tmin, tmax : float | None, optional
-        Time bounds (seconds) used to crop the data to ``[tmin, tmax]`` prior to
-        averaging over time.
 
     callback_distance : callable | None, optional
         Distance function comparing two spatial vectors of shape ``(n_channels,)``.
@@ -273,6 +269,10 @@ def between_trial_spatial(
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.Epochs.pick` /
         :meth:`mne.time_frequency.EpochsTFR.pick`. If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar mean distance across epochs. If ``False``, return
@@ -352,18 +352,18 @@ def between_trial_spatial(
 
 
 def between_trial_group_spatial(
-        data,
-        tmin=None,
-        tmax=None,
-        fmin=None,
-        fmax=None,
-        callback_distance=None,
-        callback_centroid=None,
-        centroid=None,
-        picks=None,
-        baseline=None,
-        average=True,
-        return_centroid=False,
+    data,
+    tmin=None,
+    tmax=None,
+    fmin=None,
+    fmax=None,
+    callback_distance=None,
+    callback_centroid=None,
+    centroid=None,
+    picks=None,
+    baseline=None,
+    average=True,
+    return_centroid=False,
 ):
     """
     Compute between-trial-group spatial variability.
@@ -382,19 +382,12 @@ def between_trial_group_spatial(
     data : list of mne.Evoked | list of mne.time_frequency.tfr.AverageTFR
         Group-representative MNE objects. All entries must have the same type.
 
-    centroid : mne.Evoked | mne.time_frequency.tfr.AverageTFR | None, optional
-        Reference centroid object. If ``None``, the centroid spatial vector is
-        computed from the group spatial vectors via ``callback_centroid``.
-        If provided, it must be of the same type as the entries in ``data`` and will
-        be reduced to a spatial vector using the same extraction procedure as for
-        group objects.
+    tmin, tmax : float | None, optional
+        Time bounds (seconds) used to crop objects prior to averaging over time.
 
     fmin, fmax : float | None, optional
         Lower and upper frequency bounds (Hz). Only used when objects are
         :class:`~mne.time_frequency.tfr.AverageTFR`.
-
-    tmin, tmax : float | None, optional
-        Time bounds (seconds) used to crop objects prior to averaging over time.
 
     callback_distance : callable | None, optional
         Distance function comparing two spatial vectors of shape ``(n_channels,)``.
@@ -406,9 +399,20 @@ def between_trial_group_spatial(
         If ``None``, uses an angular Fréchet mean via
         ``partial(frechet_mean_angular, verbosity=0)``.
 
+    centroid : mne.Evoked | mne.time_frequency.tfr.AverageTFR | None, optional
+        Reference centroid object. If ``None``, the centroid spatial vector is
+        computed from the group spatial vectors via ``callback_centroid``.
+        If provided, it must be of the same type as the entries in ``data`` and will
+        be reduced to a spatial vector using the same extraction procedure as for
+        group objects.
+
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Applied to each element in ``data`` and to the centroid
         object (if provided). If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(-1.0, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar mean distance across groups. If ``False``, return

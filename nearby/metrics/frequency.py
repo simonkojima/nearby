@@ -48,13 +48,24 @@ def within_trial_frequency(
     data : mne.time_frequency.tfr.EpochsTFR
         Epoched time–frequency data.
 
-    baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing the metric.
+    tmin, tmax : float | None, optional
+        Time bounds (seconds) used to define the region of interest. In ``mode="windows"``
+        these bounds control the window generation. In ``mode="all_samples"``, these
+        bounds are passed to :meth:`mne.time_frequency.EpochsTFR.get_data`.
 
     fmin, fmax : float | None, optional
         Lower and upper frequency bounds (Hz). If provided, spectra are restricted to
         ``[fmin, fmax]`` prior to computing the metric.
+
+    callback_distance : callable | None, optional
+        Distance function comparing two frequency vectors of shape ``(n_freqs,)``.
+        If ``None``, uses :func:`nearby.distances.distance_angle`.
+
+    callback_centroid : callable | None, optional
+        Function computing a centroid frequency vector from an epoch-specific matrix
+        ``X_trial`` of shape ``(n_windows, n_freqs)``.
+        If ``None``, uses an angular Fréchet mean via
+        ``partial(frechet_mean_angular, verbosity=0)``.
 
     mode : {"windows", "all_samples"}, default="windows"
         Temporal sampling strategy for frequency patterns.
@@ -70,24 +81,13 @@ def within_trial_frequency(
     window_step : float, default=0.1
         Step size (seconds) used when ``mode="windows"``.
 
-    tmin, tmax : float | None, optional
-        Time bounds (seconds) used to define the region of interest. In ``mode="windows"``
-        these bounds control the window generation. In ``mode="all_samples"``, these
-        bounds are passed to :meth:`mne.time_frequency.EpochsTFR.get_data`.
-
-    callback_distance : callable | None, optional
-        Distance function comparing two frequency vectors of shape ``(n_freqs,)``.
-        If ``None``, uses :func:`nearby.distances.distance_angle`.
-
-    callback_centroid : callable | None, optional
-        Function computing a centroid frequency vector from an epoch-specific matrix
-        ``X_trial`` of shape ``(n_windows, n_freqs)``.
-        If ``None``, uses an angular Fréchet mean via
-        ``partial(frechet_mean_angular, verbosity=0)``.
-
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.time_frequency.EpochsTFR.pick`.
         If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar averaged across epochs. If ``False``, return the
@@ -237,10 +237,6 @@ def between_trial_frequency(
     data : mne.time_frequency.tfr.EpochsTFR
         Epoched time–frequency data.
 
-    baseline : tuple of float | None, optional
-        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
-        correction is applied on a copy of ``data`` before computing the metric.
-
     tmin, tmax : float | None, optional
         Time bounds (seconds) used to crop the data to ``[tmin, tmax]`` prior to
         averaging over time.
@@ -262,6 +258,10 @@ def between_trial_frequency(
     picks : str | array_like of int | array_like of str | None, optional
         Channels to include. Passed to :meth:`mne.time_frequency.EpochsTFR.pick`.
         If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar mean distance across epochs. If ``False``, return
@@ -369,22 +369,12 @@ def between_trial_group_frequency(
         Group-representative time–frequency objects. All entries must be
         :class:`~mne.time_frequency.tfr.AverageTFR`.
 
-    centroid : mne.time_frequency.tfr.AverageTFR | None, optional
-        Reference centroid object. If ``None``, the centroid spectrum is computed from
-        the group spectra via ``callback_centroid``. If provided, it must be an
-        :class:`~mne.time_frequency.tfr.AverageTFR` and will be reduced to a spectrum
-        using the same extraction procedure as for group objects.
-
     tmin, tmax : float | None, optional
         Time bounds (seconds) used to crop objects prior to averaging over time.
 
     fmin, fmax : float | None, optional
         Lower and upper frequency bounds (Hz). If provided, spectra are restricted to
         ``[fmin, fmax]`` prior to computing the metric.
-
-    picks : str | array_like of int | array_like of str | None, optional
-        Channels to include. Applied to each element in ``data`` and to the centroid
-        object (if provided). If ``None``, all channels are used.
 
     callback_distance : callable | None, optional
         Distance function comparing two frequency vectors of shape ``(n_freqs,)``.
@@ -395,6 +385,20 @@ def between_trial_group_frequency(
         with shape ``(n_groups, n_freqs)``.
         If ``None``, uses an angular Fréchet mean via
         ``partial(frechet_mean_angular, verbosity=0)``.
+
+    centroid : mne.time_frequency.tfr.AverageTFR | None, optional
+        Reference centroid object. If ``None``, the centroid spectrum is computed from
+        the group spectra via ``callback_centroid``. If provided, it must be an
+        :class:`~mne.time_frequency.tfr.AverageTFR` and will be reduced to a spectrum
+        using the same extraction procedure as for group objects.
+
+    picks : str | array_like of int | array_like of str | None, optional
+        Channels to include. Applied to each element in ``data`` and to the centroid
+        object (if provided). If ``None``, all channels are used.
+
+    baseline : tuple of float | None, optional
+        Baseline interval in seconds (e.g., ``(None, 0.0)``). If provided, baseline
+        correction is applied on a copy of ``data`` before computing the metric.
 
     average : bool, default=True
         If ``True``, return a scalar mean distance across groups. If ``False``, return

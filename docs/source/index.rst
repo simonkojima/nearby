@@ -1,8 +1,3 @@
-.. Nearby documentation master file, created by
-   sphinx-quickstart on Wed Nov  5 11:37:33 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Nearby documentation
 ====================
 
@@ -28,6 +23,7 @@ Citations
 
 If you use Nearby in your study, please cite these publications.
 
+- Simon Kojima, Fabien Lotte, "New Metrics of Event-Related (De)Synchronization Temporal Variability Are Associated with Motor Imagery-based BCI Performance", HAL, `hal-05454066 <https://inria.hal.science/hal-05454066>`_
 - Sébastien Rimbert, David Trocellier, Fabien Lotte, "Is Event-Related Desynchronization variability correlated with BCI performance?", 2022 IEEE International Conference on Metrology for Extended Reality, Artificial Intelligence and Neural Engineering (MetroXRAINE), 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
 
 .. toctree::

@@ -37,6 +37,7 @@ Check out the documentation [here](https://simonkojima.github.io/nearby-docs/).
 Install nearby and dependencies
 
 In the nearby root directory
+
 ```
 pip install -e .
 ```
@@ -57,6 +58,6 @@ sphinx-apidoc -f -o ../docs/source ../nearby && make html
 
 ```
 
-sphinx-build -b html docs/source ~/git/nearby-docs/latest
+uv run sphinx-build -b html docs/source ~/git/nearby-docs/latest
 
 ```
