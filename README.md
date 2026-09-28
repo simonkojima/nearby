@@ -61,3 +61,8 @@ sphinx-apidoc -f -o ../docs/source ../nearby && make html
 uv run sphinx-build -b html docs/source ~/git/nearby-docs/latest
 
 ```
+
+# License
+
+This project is licensed under the BSD 3-Clause License.
+See the [LICENSE](LICENSE) file for details.
