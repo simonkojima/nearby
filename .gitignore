@@ -220,3 +220,4 @@ docs/source
 .vscode/
 _.github/
 auto_examples/
+uv.lock

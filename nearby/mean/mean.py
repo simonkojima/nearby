@@ -19,7 +19,7 @@ def extrinsic_mean(X):
 
     .. math::
 
-        \mu = \\frac{S}{|S|}
+        \\mu = \\frac{S}{|S|}
 
     Parameters
     ----------

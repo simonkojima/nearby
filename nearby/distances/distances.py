@@ -13,7 +13,7 @@ def distance_angle(w1, w2):
 
     .. math::
 
-        \mathrm{arccos}\\left(\\frac{w_1 \\cdot w_2}{||w_1|| \\cdot ||w_2||} \\right)
+        \\mathrm{arccos}\\left(\\frac{w_1 \\cdot w_2}{||w_1|| \\cdot ||w_2||} \\right)
 
     Parameters
     ----------

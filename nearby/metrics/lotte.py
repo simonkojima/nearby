@@ -3,13 +3,13 @@ import pyriemann
 
 
 def class_stability(
-        epochs=None,
-        tmin=None,
-        tmax=None,
-        covs=None,
-        picks=None,
-        centroid=None,
-        estimator="scm",
+    epochs=None,
+    tmin=None,
+    tmax=None,
+    covs=None,
+    picks=None,
+    centroid=None,
+    estimator="scm",
 ):
     """
     Compute a Riemannian geometry-based class stability score.
@@ -79,11 +79,20 @@ def class_stability(
        Journal of Neural Engineering. DOI: `10.1088/1741-2552/aac577 <https://doi.org/10.1088/1741-2552/aac577>`_
     """
 
+    try:
+        from pyriemann.estimation import Covariances
+        from pyriemann.utils.mean import mean_covariance as gmean
+        from pyriemann.utils.distance import distance
+    except ImportError:
+        from pyriemann.geometry.covariance import Covariances
+        from pyriemann.geometry.mean import gmean
+        from pyriemann.geometry.distance import distance
+
     if (epochs is None) and (covs is None):
         raise ValueError("Either epochs or covs must be provided.")
 
     if (epochs is not None) and (covs is None):
-        covs = pyriemann.estimation.Covariances(estimator=estimator).fit_transform(
+        covs = Covariances(estimator=estimator).fit_transform(
             epochs.get_data(units="uV", tmin=tmin, tmax=tmax, picks=picks)
         )
 
@@ -96,15 +105,13 @@ def class_stability(
         raise ValueError("covs must be a square matrix")
 
     if centroid is None:
-        M = pyriemann.utils.mean.mean_covariance(covs, metric="riemann")
+        M = gmean(covs, metric="riemann")
     else:
         M = centroid
 
     dispersion = []
     for m in range(covs.shape[0]):
-        d = pyriemann.utils.distance.distance(
-            M, covs[m, :, :], metric="riemann", squared=False
-        )
+        d = distance(M, covs[m, :, :], metric="riemann", squared=False)
         dispersion.append(d)
 
     dispersion = np.mean(dispersion)

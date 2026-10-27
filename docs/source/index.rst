@@ -21,10 +21,9 @@ Using Nearby, researchers can easily perform analyses such as:
 Citations
 =========
 
-If you use Nearby in your study, please cite these publications.
+If you use Nearby in your study, please cite the following publication.
 
-- Simon Kojima, Fabien Lotte, "New Metrics of Event-Related (De)Synchronization Temporal Variability Are Associated with Motor Imagery-based BCI Performance", HAL, `hal-05454066 <https://inria.hal.science/hal-05454066>`_
-- Sébastien Rimbert, David Trocellier, Fabien Lotte, "Is Event-Related Desynchronization variability correlated with BCI performance?", 2022 IEEE International Conference on Metrology for Extended Reality, Artificial Intelligence and Neural Engineering (MetroXRAINE), 2022, DOI: `10.1109/MetroXRAINE54828.2022.9967551 <https://doi.org/10.1109/MetroXRAINE54828.2022.9967551>`_
+- Simon Kojima, Fabien Lotte, "Quantifying Event-Related (De)Synchronization Variability for Brain-Computer Interface: A Unified and Interpretable Framework", arXiv preprint arXiv:2607.21119, `https://arxiv.org/abs/2607.21119 <https://arxiv.org/abs/2607.21119>`_
 
 .. toctree::
    :hidden:

@@ -26,6 +26,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "moabb>=1.7.2",
+    "black",
     "pytest",
     "sphinx",
     "pydata-sphinx-theme",
